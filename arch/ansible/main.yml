@@ -1,0 +1,20 @@
+---
+- name: Configure host.
+  hosts: all
+
+  vars_files:
+    - default.config.yml
+    - config.yml
+
+  tasks:
+    - import_tasks: tasks/update.yml
+    - import_tasks: tasks/base-packages.yml
+    - import_tasks: tasks/chaotic-aur.yml
+    - import_tasks: tasks/other-packages.yml
+    - import_tasks: tasks/other-services.yml
+    - import_tasks: tasks/dev-packages.yml
+    - import_tasks: tasks/sentinelone.yml
+    - import_tasks: tasks/docker.yml
+    - import_tasks: tasks/qemu.yml
+    - import_tasks: tasks/hyde.yml
+    - import_tasks: tasks/upgrade.yml

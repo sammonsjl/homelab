@@ -1,0 +1,50 @@
+---
+- name: Create flatpak repository directory structure
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /var/lib/flatpak/repo/objects
+    - /var/lib/flatpak/repo/tmp
+  become: true
+
+- name: Create flatpak repository config file
+  ansible.builtin.copy:
+    content: |
+      [core]
+      repo_version=1
+      mode=bare-user-only
+      min-free-space-size=500MB
+    dest: /var/lib/flatpak/repo/config
+    mode: '0644'
+  become: true
+
+- name: Clone hyDE
+  ansible.builtin.git:
+    repo: "{{ dotfiles.url }}"
+    dest: "{{ dotfiles.destination }}"
+    accept_hostkey: true
+    recursive: false
+    update: true
+    force: true
+  become: true
+  become_user: "{{ ansible_user_id }}"
+
+#- name: Install hyde
+#  ansible.builtin.expect:
+#    command: "./install.sh -drs"
+#    chdir: "{{ dotfiles.destination }}/Scripts"
+#    echo: true
+#    responses:
+#      'Proceed with installation': 'Y'
+#      'Chaotic AUR': 'y'
+#      'default: yay-bin': '1'
+#      'default: zsh': '1'
+#      'Enter option number': '\n'
+#      'Password': 'test'
+#      'Install these flatpaks': 'Y'
+#      'Do you want to reboot the system': 'n'
+#    timeout: null
+#  become: true
+#  become_user: "{{ ansible_user_id }}"
