@@ -1,0 +1,90 @@
+---
+##
+# Docker configuration
+# =====================
+##
+docker_user: "{{ ansible_user_id }}"
+uid_range_start: 100000
+uid_range_count: 65536
+
+##
+# HyDE configuration
+# =====================
+##
+dotfiles:
+  url: https://github.com/HyDE-Project/HyDE.git
+  destination: "/home/{{ ansible_user_id }}/HyDE"
+
+##
+# Base package configuration
+# ==========================
+##
+base_packages:
+  - base-devel
+  - coreutils
+  - curl
+  - dateutils
+  - pacman-contrib
+  - python-pexpect
+  - reflector
+  - rsync
+  - wget
+
+##
+# Other package configuration
+# ==========================
+##
+other_packages:
+  - 1password
+  - btop
+  - dbeaver
+  - discord
+  - dmidecode
+  - google-chrome
+  - linux-headers
+  - obsidian
+  - p7zip
+  - pika-backup
+  - slack-desktop
+  - spotify
+  - spotify-adblock-git
+  - steam
+  - tmux
+
+##
+# Service Configuration
+# ==========================
+##
+services_list:
+  - sshd
+  - reflector
+
+##
+# Dev package configuration
+# ==========================
+##
+dev_packages:
+  - go
+  - intellij-idea-ultimate-edition
+  - jdk21-openjdk
+  - nodejs
+  - npm
+  - python
+  - python-pip
+  - rust
+  - vagrant
+  - visual-studio-code-bin
+
+##
+# QEMU package configuration
+# ==========================
+##
+qemu_packages:
+  - bridge-utils
+  - dnsmasq
+  - libvirt
+  - qemu-system-x86
+  - qemu-img
+  - qemu-tools
+  - virt-manager
+  - virt-viewer

@@ -1,0 +1,155 @@
+---
+- name: Fetch config.yml directly from web server
+  ansible.builtin.uri:
+    url: "http://192.168.1.4:8080/archlinux/sentinelone/config.yml"
+    method: GET
+    return_content: yes
+  register: config_response
+  failed_when: "config_response.status != 200"
+
+- name: Parse config.yml content and set site_token
+  ansible.builtin.set_fact:
+    site_token: "{{ (config_response.content | from_yaml).site_token }}"
+  when: config_response is success
+
+- name: Check if SentinelOne is already installed
+  ansible.builtin.command: sentinelctl version
+  register: sentinel_version_check
+  failed_when: "false"
+  changed_when: false
+  ignore_errors: yes
+  become: true
+
+- name: Set fact for existing installation
+  ansible.builtin.set_fact:
+    sentinel_already_installed: "{{ sentinel_version_check.rc == 0 }}"
+
+- name: Get system serial number
+  ansible.builtin.command: dmidecode -s system-serial-number
+  register: serial_number_result
+  changed_when: false
+  become: true
+
+- name: Backup pacman.conf before modification
+  ansible.builtin.copy:
+    src: /etc/pacman.conf
+    dest: /etc/pacman.conf.bak
+    remote_src: yes
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Ensure RemoteFileSigLevel is set to Optional in pacman.conf
+  ansible.builtin.lineinfile:
+    path: /etc/pacman.conf
+    regexp: '^RemoteFileSigLevel\s*=.*'
+    line: 'RemoteFileSigLevel = Optional'
+    insertafter: '^\[options\]'
+    state: present
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Ensure /opt/sentinelone/log directory exists
+  ansible.builtin.file:
+    path: /opt/sentinelone/log
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Ensure /opt/sentinelone/temp directory exists
+  ansible.builtin.file:
+    path: /opt/sentinelone/temp
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+
+- name: Install SentinelOne package with pacman module
+  community.general.pacman:
+    name: http://192.168.1.4:8080/archlinux/sentinelone/sentinelagent-23.2.2.4-1-x86_64.pkg.tar.zst
+    state: present
+    update_cache: yes
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Restore original pacman.conf after installation
+  ansible.builtin.copy:
+    src: /etc/pacman.conf.bak
+    dest: /etc/pacman.conf
+    remote_src: yes
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Remove pacman.conf backup file
+  ansible.builtin.file:
+    path: /etc/pacman.conf.bak
+    state: absent
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Display serial number
+  ansible.builtin.debug:
+    msg: "Customer ID (the serial number of this system) is: {{ serial_number_result.stdout }}"
+
+- name: Display site token
+  ansible.builtin.debug:
+    msg: "Site token is: {{ site_token }}"
+
+- name: Set customer ID in SentinelOne
+  ansible.builtin.command:
+    cmd: "sentinelctl management customer_id set {{ serial_number_result.stdout }}"
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Set site token
+  ansible.builtin.command:
+    cmd: "sentinelctl management token set {{ site_token }}"
+  when:
+    - site_token is defined
+    - site_token | length > 0
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Start SentinelOne service
+  ansible.builtin.command:
+    cmd: "/opt/sentinelone/bin/sentinelctl control start"
+  when:
+    - not sentinel_already_installed
+    - serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Check SentinelOne status
+  ansible.builtin.command:
+    cmd: "/opt/sentinelone/bin/sentinelctl management status"
+  register: sentinel_status
+  changed_when: false
+  when: serial_number_result.stdout != "Not Specified"
+  become: true
+
+- name: Display SentinelOne status
+  ansible.builtin.debug:
+    msg: "SentinelOne status: {{ sentinel_status.stdout }}"
+  when:
+    - serial_number_result.stdout != "Not Specified"
+    - sentinel_status is defined

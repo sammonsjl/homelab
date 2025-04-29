@@ -1,0 +1,62 @@
+---
+- name: Install Qemu and related packages
+  community.general.pacman:
+    name: "{{ qemu_packages }}"
+    state: present
+  become: true
+
+- name: Enable and start libvirtd service
+  ansible.builtin.systemd:
+    name: libvirtd
+    state: started
+    enabled: yes
+  become: true
+
+- name: Create Qemu storage directory
+  ansible.builtin.file:
+    path: /var/lib/qemu
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: true
+
+- name: Add user to libvirt group
+  ansible.builtin.user:
+    name: "{{ ansible_user_id }}"
+    groups: libvirt
+    append: yes
+  become: true
+
+- name: Configure libvirt network (default NAT)
+  ansible.builtin.command:
+    cmd: virsh net-start default
+    creates: /var/run/libvirt/network/default.pid
+  changed_when: true
+  become: true
+
+- name: Set libvirt network to autostart
+  ansible.builtin.command:
+    cmd: virsh net-autostart default
+    creates: /var/lib/libvirt/network/default.xml
+  changed_when: true
+  become: true
+
+- name: Ensure Qemu permissions are set
+  ansible.builtin.file:
+    path: /etc/libvirt/qemu.conf
+    state: touch
+    mode: '0644'
+    owner: root
+    group: root
+  become: true
+
+- name: Verify Qemu installation
+  ansible.builtin.command:
+    cmd: qemu-system-x86_64 --version
+  register: qemu_version
+  changed_when: false
+
+- name: Display Qemu version
+  ansible.builtin.debug:
+    msg: "Installed Qemu version: {{ qemu_version.stdout }}"

@@ -1,0 +1,81 @@
+---
+- name: Ensure required packages are installed
+  community.general.pacman:
+    name:
+      - docker
+      - docker-compose
+      - docker-rootless-extras
+    state: present
+    update_cache: true
+  become: true
+
+- name: Ensure the non-root user exists
+  ansible.builtin.user:
+    name: "{{ docker_user }}"
+    state: present
+    shell: /bin/bash
+  become: true
+
+- name: Get user info for UID
+  ansible.builtin.command: "id -u {{ docker_user }}"
+  register: docker_user_uid
+  changed_when: false
+
+- name: Configure subuid for rootless Docker
+  ansible.builtin.lineinfile:
+    path: /etc/subuid
+    line: "{{ docker_user }}:{{ uid_range_start }}:{{ uid_range_count }}"
+    state: present
+    create: true
+    mode: '0644'
+  become: true
+
+- name: Configure subgid for rootless Docker
+  ansible.builtin.lineinfile:
+    path: /etc/subgid
+    line: "{{ docker_user }}:{{ uid_range_start }}:{{ uid_range_count }}"
+    state: present
+    create: true
+    mode: '0644'
+  become: true
+
+- name: Ensure Docker daemon is disabled at system level
+  ansible.builtin.systemd:
+    name: docker.service
+    state: stopped
+    enabled: false
+  ignore_errors: true
+  become: true
+
+- name: Enable and start rootless Docker service
+  ansible.builtin.systemd:
+    name: docker.service
+    scope: user
+    state: started
+    enabled: true
+  become: true
+  become_user: "{{ docker_user }}"
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ docker_user_uid.stdout }}"
+
+- name: Add DOCKER_HOST environment variable to user’s .bashrc
+  ansible.builtin.lineinfile:
+    path: "/home/{{ docker_user }}/.bashrc"
+    line: 'export DOCKER_HOST=unix:///run/user/{{ docker_user_uid.stdout }}/docker.sock'
+    state: present
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0644'
+
+- name: Verify Docker is running in rootless mode
+  ansible.builtin.command: "docker info --format '[name=seccomp,profile=default name=userns name=rootless]'"
+  become: true
+  become_user: "{{ docker_user }}"
+  environment:
+    DOCKER_HOST: "unix:///run/user/{{ docker_user_uid.stdout }}/docker.sock"
+  register: docker_info
+  changed_when: false
+
+- name: Display Docker security options
+  ansible.builtin.debug:
+    msg: "Docker security options: {{ docker_info.stdout }}"
