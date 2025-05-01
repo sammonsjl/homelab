@@ -26,6 +26,5 @@
   "image": "mcr.microsoft.com/devcontainers/base:debian",
   "remoteEnv": {
     "LANG": "en_US.UTF-8"
-  },
-  "remoteUser": "root"
+  }
 }
