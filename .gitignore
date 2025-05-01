@@ -1,2 +1,3 @@
 /arch/vagrant/.vagrant/
 /.idea/
+/.devpod-internal/
