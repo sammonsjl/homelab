@@ -2,15 +2,15 @@
   "features": {
     "ghcr.io/devcontainers/features/nix:1": {
       "multiUser": false,
-      "packages": "kubectl, k9s, lazygit, nodejs_22, neovim, starship, stow, talosctl, tmux",
+      "packages": "kubectl, k9s, lazygit, nodejs, neovim, starship, stow, talosctl, tmux",
       "useAttributePath": true,
       "version": "latest"
-    },
-    "ghcr.io/kreemer/features/stow:1": {}
+    }
   },
   "image": "mcr.microsoft.com/devcontainers/base:debian",
-  "onCreateCommand": "sudo chsh -s /usr/bin/zsh $USER",
+  "onCreateCommand": "sudo chsh -s /usr/bin/zsh $USER && npm set prefix ~/.npm-global",
   "remoteEnv": {
-    "LANG": "en_US.UTF-8"
+    "LANG": "en_US.UTF-8",
+    "PATH": "${containerEnv:PATH}:/home/vscode/.nix-profile/bin:/home/vscode/.npm-global/bin"
   }
 }
