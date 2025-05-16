@@ -15,5 +15,6 @@
   "remoteEnv": {
     "LANG": "en_US.UTF-8",
     "PATH": "${containerEnv:PATH}:/home/vscode/.nix-profile/bin:/home/vscode/.npm-global/bin"
-  }
+  },
+  "remoteUser": "root"
 }
