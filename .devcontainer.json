@@ -11,7 +11,7 @@
   "mounts": [
     "type=bind,source=/home/${localEnv:USER}/.ssh,target=/root/.ssh,readonly"
   ],
-  "onCreateCommand": "sudo chsh -s /usr/bin/zsh $USER && npm set prefix ~/.npm-global",
+  "onCreateCommand": "chsh -s /usr/bin/zsh root  && npm set prefix ~/.npm-global",
   "remoteEnv": {
     "LANG": "en_US.UTF-8",
     "PATH": "${containerEnv:PATH}:/home/vscode/.nix-profile/bin:/root/.npm-global/bin"
