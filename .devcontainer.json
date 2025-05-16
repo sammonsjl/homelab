@@ -2,7 +2,7 @@
   "features": {
     "ghcr.io/devcontainers/features/nix:1": {
       "multiUser": false,
-      "packages": "fzf kubectl, k9s, lazygit, nodejs, neovim, ripgrep, starship, stow, talosctl, tmux",
+      "packages": "fzf, kubectl, k9s, lazygit, nodejs, neovim, ripgrep, starship, stow, talosctl, tmux",
       "useAttributePath": true,
       "version": "latest"
     }
