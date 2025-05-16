@@ -8,6 +8,9 @@
     }
   },
   "image": "mcr.microsoft.com/devcontainers/base:debian",
+  "mounts": [
+    "type=bind,source=/home/${localEnv:USER}/.ssh,target=/home/vscode/.ssh,readonly"
+  ],
   "onCreateCommand": "sudo chsh -s /usr/bin/zsh $USER && npm set prefix ~/.npm-global",
   "remoteEnv": {
     "LANG": "en_US.UTF-8",
