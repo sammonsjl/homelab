@@ -17,7 +17,7 @@
   register: sentinel_version_check
   failed_when: "false"
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
   become: true
 
 - name: Set fact for existing installation
@@ -44,7 +44,7 @@
   ansible.builtin.lineinfile:
     path: /etc/pacman.conf
     regexp: '^RemoteFileSigLevel\s*=.*'
-    line: 'RemoteFileSigLevel = Optional'
+    line: "RemoteFileSigLevel = Optional"
     insertafter: '^\[options\]'
     state: present
   when:
@@ -56,7 +56,7 @@
   ansible.builtin.file:
     path: /opt/sentinelone/log
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   when:
@@ -68,14 +68,13 @@
   ansible.builtin.file:
     path: /opt/sentinelone/temp
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
   when:
     - not sentinel_already_installed
     - serial_number_result.stdout != "Not Specified"
   become: true
-
 
 - name: Install SentinelOne package with pacman module
   community.general.pacman:
@@ -153,3 +152,4 @@
   when:
     - serial_number_result.stdout != "Not Specified"
     - sentinel_status is defined
+
