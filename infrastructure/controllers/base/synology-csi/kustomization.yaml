@@ -7,4 +7,3 @@ resources:
   - node.yaml
   - storage-class.yaml
   - storage-class-retain.yaml
-  - storage-class-smb.yaml
