@@ -1,0 +1,28 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: minecraft
+  namespace: minecraft
+spec:
+  releaseName: minecraft
+  chart:
+    spec:
+      chart: minecraft
+      sourceRef:
+        kind: HelmRepository
+        name: minecraft
+  interval: 10m
+  install:
+    remediation:
+      retries: 3
+  values:
+    minecraftServer:
+      difficulty: easy
+      eula: true
+      gameMode: survival
+      type: PAPER
+
+    persistence:
+      dataDir:
+        enabled: true
+        storageClassName: "local-path"
