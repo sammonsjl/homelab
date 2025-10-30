@@ -1,3 +1,7 @@
+provider "docker" {
+  host = "unix:///var/run/docker.sock"
+}
+
 provider "flux" {
   kubernetes = {
     config_path = "~/.kube/config"
