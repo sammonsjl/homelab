@@ -1,5 +1,9 @@
 terraform {
   required_providers {
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "3.8.0"
+    }
     flux = {
       source  = "fluxcd/flux"
       version = "1.7.4"
@@ -14,6 +18,17 @@ terraform {
     }
   }
   required_version = ">= 1.10.0"
+}
+
+resource "docker_network" "cilium_network" {
+  name   = "cilium"
+  driver = "bridge"
+
+  ipam_config {
+    ip_range = "172.50.0.0/16"
+    subnet   = "172.50.0.0/16"
+    gateway  = "172.50.0.1"
+  }
 }
 
 resource "k3d_cluster" "bahamut" {
