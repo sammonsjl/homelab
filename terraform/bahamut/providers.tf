@@ -7,7 +7,7 @@ provider "flux" {
     config_path = "~/.kube/config"
   }
   git = {
-    branch = "k3d-base"
+    branch = "k3d-complete"
     url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
     http = {
       username = "git"
@@ -19,4 +19,10 @@ provider "flux" {
 provider "github" {
   owner = var.github_org
   token = var.github_token
+}
+
+provider "helm" {
+  kubernetes = {
+    config_path = "~/.kube/config"
+  }
 }
