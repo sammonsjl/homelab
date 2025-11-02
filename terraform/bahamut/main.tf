@@ -20,6 +20,10 @@ terraform {
       source  = "moio/k3d"
       version = "0.0.12"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "2.38.0"
+    }
   }
   required_version = ">= 1.10.0"
 }
@@ -103,4 +107,25 @@ resource "flux_bootstrap_git" "this" {
   depends_on           = [k3d_cluster.bahamut]
   delete_git_manifests = false
   path                 = "clusters/bahamut"
+}
+
+resource "kubernetes_namespace" "external_secrets" {
+  depends_on = [k3d_cluster.bahamut]
+  metadata {
+    name = "external-secrets"
+  }
+}
+
+resource "kubernetes_secret" "vault_token" {
+  depends_on = [kubernetes_namespace.external_secrets]
+  metadata {
+    name      = "vault-token"
+    namespace = kubernetes_namespace.external_secrets.metadata[0].name
+  }
+
+  type = "Opaque"
+
+  data = {
+    token = var.vault_token
+  }
 }
