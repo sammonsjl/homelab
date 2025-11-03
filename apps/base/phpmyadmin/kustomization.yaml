@@ -1,12 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: homepage
+namespace: phpmyadmin
 resources:
-  - clusterrole.yaml
   - deployment.yaml
-  - externalsecret.yaml
   - httproute.yaml
   - namespace.yaml
-  - secret.yaml
   - service.yaml
-  - serviceaccount.yaml

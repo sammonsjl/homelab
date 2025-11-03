@@ -9,7 +9,7 @@ spec:
   revisionHistoryLimit: 3
   replicas: 1
   strategy:
-    type: RollingUpdate
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: homepage
@@ -28,7 +28,7 @@ spec:
           imagePullPolicy: Always
           env:
             - name: HOMEPAGE_ALLOWED_HOSTS
-              value: homepage.localhost # required, may need port. See gethomepage.dev/installation/#homepage_allowed_hosts
+              value: "*"
           ports:
             - name: http
               containerPort: 3000
@@ -62,7 +62,7 @@ spec:
               name: logs
       volumes:
         - name: homepage-config
-          configMap:
-            name: homepage
+          secret:
+            secretName: homepage-config
         - name: logs
           emptyDir: {}
