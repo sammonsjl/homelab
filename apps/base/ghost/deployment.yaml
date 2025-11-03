@@ -25,121 +25,110 @@ spec:
     spec:
       automountServiceAccountToken: false
       volumes:
-      - name: ghost-content
-        persistentVolumeClaim:
-          claimName: ghost-content
-      - name: ghost-config
-        configMap:
-            name: ghost
-            defaultMode: 420
-      - name: tmp
-        emptyDir:
-          sizeLimit: 64Mi
+        - name: ghost-content
+          persistentVolumeClaim:
+            claimName: ghost-content
+        - name: ghost-config
+          secret:
+            secretName: ghost-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
 
       initContainers:
-      - name: permissions-fix
-        imagePullPolicy: Always
-        image: docker.io/busybox:stable-musl
-        env:
-        - name: GHOST_INSTALL
-          value: /home/nonroot/app/ghost
-        - name: GHOST_CONTENT
-          value: /home/nonroot/app/ghost/content
-        - name: NODE_ENV
-          value: development
-        securityContext:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-        resources:
-          limits:
-            cpu: 900m
-            memory: 1000Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
-        command:
-          - /bin/sh
-          - '-c'
-          - |
-            set -e
+        - name: permissions-fix
+          imagePullPolicy: Always
+          image: docker.io/busybox:stable-musl
+          env:
+            - name: GHOST_INSTALL
+              value: /home/nonroot/app/ghost
+            - name: GHOST_CONTENT
+              value: /home/nonroot/app/ghost/content
+            - name: NODE_ENV
+              value: production
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          resources:
+            limits:
+              cpu: 900m
+              memory: 1000Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          command:
+            - /bin/sh
+            - "-c"
+            - |
+              set -e
 
-            export DIRS='files logs apps themes data public settings images media'
-            echo 'Check if base dirs exists, if not, create them'
-            echo "Directories to check: $DIRS"
-            for dir in $DIRS; do
-              if [ ! -d $GHOST_CONTENT/$dir ]; then
-                echo "Creating $GHOST_CONTENT/$dir directory"
-                mkdir -pv $GHOST_CONTENT/$dir || echo "Error creating $GHOST_CONTENT/$dir directory"
-              fi
-              chown -Rfv 65532:65532 $GHOST_CONTENT/$dir && echo "chown ok on $dir" || echo "Error changing ownership of $GHOST_CONTENT/$dir directory"
-            done
-            exit 0
-        volumeMounts:
-        - name: ghost-content
-          mountPath: /home/nonroot/app/ghost/content
-          readOnly: false
+              export DIRS='files logs apps themes data public settings images media'
+              echo 'Check if base dirs exists, if not, create them'
+              echo "Directories to check: $DIRS"
+              for dir in $DIRS; do
+                if [ ! -d $GHOST_CONTENT/$dir ]; then
+                  echo "Creating $GHOST_CONTENT/$dir directory"
+                  mkdir -pv $GHOST_CONTENT/$dir || echo "Error creating $GHOST_CONTENT/$dir directory"
+                fi
+                chown -Rfv 65532:65532 $GHOST_CONTENT/$dir && echo "chown ok on $dir" || echo "Error changing ownership of $GHOST_CONTENT/$dir directory"
+              done
+              exit 0
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /home/nonroot/app/ghost/content
+              readOnly: false
       containers:
-      - name: ghost
-        image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main
-        imagePullPolicy: Always
-        ports:
-        - name: http
-          containerPort: 2368
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /ghost/api/v4/admin/site/
-            port: http
-            httpHeaders:
-            - name: X-Forwarded-Proto
-              value: https
-            - name: Host
-              value: yourdomain.tld
-          periodSeconds: 10
-          timeoutSeconds: 3
-          successThreshold: 1
-          failureThreshold: 3
-          initialDelaySeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /ghost/api/v4/admin/site/
-            port: ghk8s
-            httpHeaders:
-            - name: X-Forwarded-Proto
-              value: https
-            - name: Host
-              value: yourdomain.tld
-          periodSeconds: 300
-          timeoutSeconds: 3
-          successThreshold: 1
-          failureThreshold: 1
-          initialDelaySeconds: 30
-        env:
-        - name: NODE_ENV
-          value: development
-        resources:
-          limits:
-            cpu: 800m
-            memory: 800Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
-        volumeMounts:
-        - name: ghost-content
-          mountPath: /home/nonroot/app/ghost/content
-          readOnly: false
-        - name: ghost-config
-          readOnly: true
-          mountPath: /home/nonroot/app/ghost/config.development.json
-          subPath: config.development.json
-        - name: tmp
-          mountPath: /tmp
-          readOnly: false
-        securityContext:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 65532
+        - name: ghost
+          image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 2368
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ghost/api/v4/admin/site/
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 3
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ghost/api/v4/admin/site/
+              port: http
+            periodSeconds: 300
+            timeoutSeconds: 3
+            successThreshold: 1
+            failureThreshold: 1
+            initialDelaySeconds: 30
+          env:
+            - name: NODE_ENV
+              value: production
+          resources:
+            limits:
+              cpu: 800m
+              memory: 800Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          volumeMounts:
+            - name: ghost-content
+              mountPath: /home/nonroot/app/ghost/content
+              readOnly: false
+            - name: ghost-config
+              readOnly: true
+              mountPath: /home/nonroot/app/ghost/config.production.json
+              subPath: config.production.json
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
       restartPolicy: Always
       terminationGracePeriodSeconds: 15
       dnsPolicy: ClusterFirst

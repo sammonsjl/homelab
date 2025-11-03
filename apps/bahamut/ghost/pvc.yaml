@@ -6,9 +6,4 @@ metadata:
   labels:
     app.kubernetes.io/name: ghost-content
 spec:
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+  storageClassName: "local-path"
