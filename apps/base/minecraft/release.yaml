@@ -21,8 +21,7 @@ spec:
       eula: true
       gameMode: survival
       type: PAPER
-
     persistence:
-      dataDir:
+      datadir:
         enabled: true
-        storageClassName: "local-path"
+      storageClass: local-path
