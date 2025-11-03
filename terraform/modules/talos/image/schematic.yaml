@@ -1,0 +1,8 @@
+# tofu/talos/image/schematic.yaml
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/i915
+      - siderolabs/intel-ucode
+      - siderolabs/iscsi-tools
+      - siderolabs/qemu-guest-agent
