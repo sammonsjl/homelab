@@ -1,0 +1,57 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: minecraft
+  namespace: minecraft
+spec:
+  releaseName: minecraft
+  chart:
+    spec:
+      chart: minecraft
+      sourceRef:
+        kind: HelmRepository
+        name: minecraft
+  interval: 10m
+  install:
+    remediation:
+      retries: 3
+  values:
+    resources:
+      requests:
+        cpu: null 
+        memory: 4096Mi
+    minecraftServer:
+      difficulty: easy
+      eula: true
+      externalTrafficPolicy: Cluster
+      enableCommandBlock: true
+      gameMode: survival
+      memory: 4096M
+      motd: "BotW"
+      serviceType: LoadBalancer
+      type: PAPER
+      version: "1.21.4"
+      rcon:
+        enabled: true
+        withGeneratedPassword: true
+      extraPorts:
+        - name: bedrock
+          containerPort: 19132
+          protocol: UDP
+          service:
+            enabled: true
+            type: LoadBalancer
+            externalTrafficPolicy: Cluster
+            port: 19132
+        - name: fruitjuice
+          containerPort: 4711
+          protocol: TCP
+          service:
+            enabled: true
+            type: LoadBalancer
+            externalTrafficPolicy: Cluster
+            port: 4711
+    persistence:
+      dataDir:
+        enabled: true
+      storageClass: "nfs-csi"
