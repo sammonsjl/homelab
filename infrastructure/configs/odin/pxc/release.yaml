@@ -1,0 +1,60 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: pxc-db
+  namespace: pxc
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: pxc-db
+      version: "1.18.0"
+      sourceRef:
+        kind: HelmRepository
+        name: percona
+        namespace: pxc
+      interval: 12h
+
+  values:
+    backup:
+      schedule:
+        - name: "daily-backup"
+          schedule: "0 0 * * *"
+          retention:
+            type: "count"
+            count: 5
+            deleteFromStorage: true
+          storageName: backup-pxc-db
+      storages:
+        backup-pxc-db:
+          containerSecurityContext: # Applies to containers like backup-init and xtrabackup
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          podSecurityContext: # Optional but recommended for pod-level enforcement if container-level isn't sufficient
+            fsGroup: 1001
+            supplementalGroups: [1001, 1002, 1003]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          type: filesystem
+          volume:
+            persistentVolumeClaim:
+              storageClassName: nfs-csi
+              accessModes: ["ReadWriteMany"]
+              resources:
+                requests:
+                  storage: 1Gi
+    pxc:
+      size: 1
+      persistence:
+        storageClass: "synology-iscsi"
+    unsafeFlags:
+      proxySize: true
+      pxcSize: true
+    haproxy:
+      size: 1

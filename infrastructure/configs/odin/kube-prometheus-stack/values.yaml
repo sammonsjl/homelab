@@ -1,0 +1,100 @@
+# NOTE: These must be set manually to the control plane IP addresses
+# kubeEtcd:
+#  endpoints:
+#    - x.y.z.a
+#    - x.y.z.b
+#    - x.y.z.c
+kubeControllerManager:
+  service:
+    selector:
+      k8s-app: kube-controller-manager
+kubeScheduler:
+  service:
+    selector:
+      k8s-app: kube-scheduler
+
+alertmanager:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    podMonitorNamespaceSelector:
+      matchLabels:
+        app.kubernetes.io/component: monitoring
+
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+grafana:
+  grafana.ini:
+    date_formats:
+      default_week_start: monday
+
+  envFromSecret: db-passwords
+
+  sidecar:
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: monitoring
+      provider:
+        allowUiUpdates: true
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Ghost DB
+          type: mysql
+          url: pxc-db-haproxy.pxc.svc.cluster.local:3306
+          user: ghost
+          uid: ghost
+          secureJsonData:
+            password: $GHOST_DB_PASSWORD
+          jsonData:
+            database: ghost
+            sslmode: disable
+            maxOpenConns: 100
+            maxIdleConns: 100
+            maxLifetime: 14400
+            minIdleTimeoutMinutes: 1
+            connMaxLifetime: 14400
+            postgresVersion: 1500
+            timescaledb: false
+          version: 1
+          editable: true
+      deleteDatasources:
+        - name: Ghost DB
+          orgId: 1
+
+  persistence:
+    accessModes:
+      - ReadWriteOnce
+    enabled: true
+    size: 4Gi
+    storageClass: local-path
+    type: pvc
+
+  route:
+    main:
+      enabled: true
+      annotations:
+        gethomepage.dev/app: grafana
+        gethomepage.dev/enabled: "true"
+        gethomepage.dev/description: Grafana CMS
+        gethomepage.dev/group: Homelab
+        gethomepage.dev/icon: grafana.png
+        gethomepage.dev/name: Grafana
+        gethomepage.dev/statusStyle: dot
+      hostnames:
+        - grafana-uat.neokube.net
+      parentRefs:
+        - name: gateway
+          namespace: kube-system
