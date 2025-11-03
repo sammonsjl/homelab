@@ -4,3 +4,4 @@ resources:
   - cilium
   - external-dns
   - external-secrets
+  - pxc
