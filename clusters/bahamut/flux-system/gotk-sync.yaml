@@ -8,10 +8,10 @@ metadata:
 spec:
   interval: 1m0s
   ref:
-    branch: k3d-complete
+    branch: master
   secretRef:
     name: flux-system
-  url: https://github.com/sammonsjl/homelab-new.git
+  url: https://github.com/sammonsjl/homelab.git
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
