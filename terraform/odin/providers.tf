@@ -7,18 +7,58 @@ terraform {
     }
     proxmox = {
       source  = "bpg/proxmox"
-      version = "0.82.1"
+      version = "0.86.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "2.38.0"
+    }
+    flux = {
+      source  = "fluxcd/flux"
+      version = "1.7.4"
+    }
+    github = {
+      source  = "integrations/github"
+      version = ">= 6.1"
     }
   }
 }
 
-provider "proxmox" {
-  endpoint = var.proxmox.endpoint
-  insecure = var.proxmox.insecure
+provider "flux" {
+  kubernetes = {
+    host                   = module.talos.kube_config.kubernetes_client_configuration.host
+    client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
+    client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
+    cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
+  }
+  git = {
+    branch = "talos"
+    url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
+    http = {
+      username = "git"
+      password = var.github_token
+    }
+  }
+}
 
-  api_token = var.proxmox.api_token
+provider "github" {
+  owner = var.github_org
+  token = var.github_token
+}
+
+provider "proxmox" {
+  endpoint  = "https://192.168.1.3:8006"
+  insecure  = true
+  api_token = var.proxmox_token
   ssh {
     agent    = true
-    username = var.proxmox.username
+    username = "root"
   }
+}
+
+provider "kubernetes" {
+  host                   = module.talos.kube_config.kubernetes_client_configuration.host
+  client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
+  client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
+  cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
 }

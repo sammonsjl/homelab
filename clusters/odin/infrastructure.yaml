@@ -27,5 +27,5 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./k8s/infrastructure/configs/odin
+  path: ./infrastructure/configs/odin
   prune: true
