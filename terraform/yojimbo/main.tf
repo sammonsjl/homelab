@@ -7,20 +7,20 @@ module "talos" {
   }
 
   image = {
-    version   = "v1.10.6"
+    version   = "v1.11.0"
     schematic = file("${path.module}/../modules/talos/image/schematic.yaml")
   }
 
   cilium = {
     install = file("${path.module}/../modules/talos/inline-manifests/cilium-install.yaml")
-    values  = file("${path.module}/../../k8s/infrastructure/controllers/base/cilium/values.yaml")
+    values  = file("${path.module}/../../infrastructure/controllers/base/cilium/values.yaml")
   }
 
   cluster = {
     name            = "yojimbo"
     endpoint        = "192.168.1.20"
     gateway         = "192.168.1.1"
-    talos_version   = "v1.10"
+    talos_version   = "v1.11"
     proxmox_cluster = "homelab"
   }
 
@@ -63,5 +63,32 @@ module "talos" {
       ram_dedicated = 8192
       igpu          = false
     }
+  }
+}
+
+resource "flux_bootstrap_git" "this" {
+  depends_on           = [module.talos]
+  delete_git_manifests = false
+  path                 = "clusters/yojimbo"
+}
+
+resource "kubernetes_namespace" "external_secrets" {
+  depends_on = [module.talos]
+  metadata {
+    name = "external-secrets"
+  }
+}
+
+resource "kubernetes_secret" "vault_token" {
+  depends_on = [kubernetes_namespace.external_secrets]
+  metadata {
+    name      = "vault-token"
+    namespace = kubernetes_namespace.external_secrets.metadata[0].name
+  }
+
+  type = "Opaque"
+
+  data = {
+    token = var.vault_token
   }
 }
