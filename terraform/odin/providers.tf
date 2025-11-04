@@ -32,8 +32,7 @@ provider "flux" {
     cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
   }
   git = {
-    branch = "talos"
-    url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
+    url = "https://github.com/${var.github_org}/${var.github_repository}.git"
     http = {
       username = "git"
       password = var.github_token
