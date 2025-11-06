@@ -1,0 +1,40 @@
+---
+gatewayAPI:
+  enabled: false
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+    rollOutPods: true
+  ui:
+    enabled: true
+    rollOutPods: true
+ingressController:
+  enabled: false
+ipam:
+  mode: kubernetes
+k8sClientRateLimit:
+  burst: 100
+  qps: 20
+k8sServiceHost: 172.50.0.2
+k8sServicePort: "6443"
+kubeProxyReplacement: true
+l2announcements:
+  enabled: true
+operator:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  rollOutPods: true
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 512Mi
+rollOutCiliumPods: true

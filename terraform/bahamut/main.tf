@@ -6,7 +6,7 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "3.6.2"
+      version = "3.8.0"
     }
     flux = {
       source  = "fluxcd/flux"
@@ -55,7 +55,7 @@ resource "k3d_cluster" "bahamut" {
   token   = "Ciliumk3d1"
 
   volume {
-    source      = "/home/me/dev/projects/homelab/k3d/k3d-entrypoint-cilium.sh"
+    source      = "/home/jamie/projects/homelab/terraform/bahamut/k3d-entrypoint-cilium.sh"
     destination = "/bin/k3d-entrypoint-cilium.sh"
     node_filters = [
       "all"
@@ -99,7 +99,7 @@ resource "helm_release" "cilium" {
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
   version    = "1.18.3"
-  values     = [file("../../infrastructure/controllers/bahamut/cilium/values.yaml")]
+  values     = [file("cilium-helm-values.yaml")]
   wait       = false
 }
 
