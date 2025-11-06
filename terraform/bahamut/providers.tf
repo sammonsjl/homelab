@@ -7,7 +7,7 @@ provider "flux" {
     config_path = "~/.kube/config"
   }
   git = {
-    branch = "k3d-complete"
+    branch = "master"
     url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
     http = {
       username = "git"
