@@ -42,7 +42,6 @@ module "talos" {
       vm_id         = 103
       cpu           = 8
       ram_dedicated = 4096
-      igpu          = true
     }
   }
 }
