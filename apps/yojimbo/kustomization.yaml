@@ -3,5 +3,5 @@ kind: Kustomization
 resources:
   - ghost
   - homepage
-  - minecraft
+#  - minecraft
   - phpmyadmin

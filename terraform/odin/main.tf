@@ -32,7 +32,7 @@ module "talos" {
       mac_address   = "BC:24:11:2E:C8:00"
       vm_id         = 100
       cpu           = 8
-      ram_dedicated = 8192
+      ram_dedicated = 4096
     }
     "odin-work-00" = {
       host_node     = "lud"
