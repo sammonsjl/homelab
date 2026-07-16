@@ -3,11 +3,11 @@ terraform {
   required_providers {
     talos = {
       source  = "siderolabs/talos"
-      version = "0.8.1"
+      version = "0.11.0"
     }
     proxmox = {
       source  = "bpg/proxmox"
-      version = "0.86.0"
+      version = "0.111.1"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
@@ -15,7 +15,7 @@ terraform {
     }
     flux = {
       source  = "fluxcd/flux"
-      version = "1.7.4"
+      version = "1.9.2"
     }
     github = {
       source  = "integrations/github"

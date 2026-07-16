@@ -10,7 +10,7 @@ terraform {
     }
     flux = {
       source  = "fluxcd/flux"
-      version = "1.7.4"
+      version = "1.9.2"
     }
     github = {
       source  = "integrations/github"
@@ -55,7 +55,7 @@ resource "k3d_cluster" "bahamut" {
   token   = "Ciliumk3d1"
 
   volume {
-    source      = "/home/jamie/projects/homelab/terraform/bahamut/k3d-entrypoint-cilium.sh"
+    source      = "${abspath(path.module)}/k3d-entrypoint-cilium.sh"
     destination = "/bin/k3d-entrypoint-cilium.sh"
     node_filters = [
       "all"
@@ -98,7 +98,7 @@ resource "helm_release" "cilium" {
   namespace  = "kube-system"
   repository = "https://helm.cilium.io/"
   chart      = "cilium"
-  version    = "1.18.3"
+  version    = "1.19.5"
   values     = [file("cilium-helm-values.yaml")]
   wait       = false
 }
