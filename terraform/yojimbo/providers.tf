@@ -13,10 +13,6 @@ terraform {
       source  = "fluxcd/flux"
       version = "1.9.2"
     }
-    github = {
-      source  = "integrations/github"
-      version = ">= 6.1"
-    }
   }
 }
 
@@ -28,18 +24,13 @@ provider "flux" {
     cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
   }
   git = {
-    branch = "master"
-    url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
-    http = {
-      username = "git"
-      password = var.github_token
+    branch = "main"
+    url    = "ssh://git@github.com/${var.github_org}/${var.github_repository}.git"
+    ssh = {
+      username    = "git"
+      private_key = file(pathexpand("~/.ssh/id_ed25519"))
     }
   }
-}
-
-provider "github" {
-  owner = var.github_org
-  token = var.github_token
 }
 
 provider "proxmox" {
