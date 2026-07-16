@@ -9,10 +9,6 @@ terraform {
       source  = "bpg/proxmox"
       version = "0.111.1"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "2.38.0"
-    }
     flux = {
       source  = "fluxcd/flux"
       version = "1.9.2"
@@ -54,11 +50,4 @@ provider "proxmox" {
     agent    = true
     username = "root"
   }
-}
-
-provider "kubernetes" {
-  host                   = module.talos.kube_config.kubernetes_client_configuration.host
-  client_certificate     = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_certificate)
-  client_key             = base64decode(module.talos.kube_config.kubernetes_client_configuration.client_key)
-  cluster_ca_certificate = base64decode(module.talos.kube_config.kubernetes_client_configuration.ca_certificate)
 }
