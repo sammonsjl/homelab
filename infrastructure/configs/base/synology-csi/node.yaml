@@ -47,7 +47,6 @@ apiVersion: apps/v1
 metadata:
   name: synology-csi-node
   namespace: synology-csi
-  pod-security.kubernetes.io/enforce: privileged
 spec:
   selector:
     matchLabels:
@@ -59,13 +58,12 @@ spec:
     spec:
       serviceAccount: csi-node-sa
       hostNetwork: true
-      hostPID: true
       containers:
         - name: csi-driver-registrar
           securityContext:
             privileged: true
           imagePullPolicy: Always
-          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.3.0
+          image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.17.0
           args:
             - --v=5
             - --csi-address=$(ADDRESS) # the csi socket path inside the pod
@@ -88,13 +86,14 @@ spec:
           securityContext:
             privileged: true
           imagePullPolicy: IfNotPresent
-          image: ghcr.io/sammonsjl/synology-csi:v1.2.0
+          image: synology/synology-csi:v1.3.0
           args:
             - --nodeid=$(KUBE_NODE_NAME)
             - --endpoint=$(CSI_ENDPOINT)
             - --client-info
             - /etc/synology/client-info.yml
             - --log-level=info
+            - --chroot-dir=/host
           env:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
