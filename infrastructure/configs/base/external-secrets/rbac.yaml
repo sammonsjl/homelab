@@ -1,0 +1,17 @@
+---
+# Vault is external to the cluster and has no reviewer JWT, so it
+# authenticates ESO's ServiceAccount tokens by calling the TokenReview
+# API as the client itself. That requires the ESO SA to hold
+# system:auth-delegator.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eso-auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: external-secrets
+    namespace: external-secrets
