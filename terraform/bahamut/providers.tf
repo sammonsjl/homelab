@@ -7,18 +7,13 @@ provider "flux" {
     config_path = "~/.kube/config"
   }
   git = {
-    branch = "master"
-    url    = "https://github.com/${var.github_org}/${var.github_repository}.git"
-    http = {
-      username = "git"
-      password = var.github_token
+    branch = "main"
+    url    = "ssh://git@github.com/${var.github_org}/${var.github_repository}.git"
+    ssh = {
+      username    = "git"
+      private_key = file(pathexpand("~/.ssh/id_ed25519"))
     }
   }
-}
-
-provider "github" {
-  owner = var.github_org
-  token = var.github_token
 }
 
 provider "helm" {
