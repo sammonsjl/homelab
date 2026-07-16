@@ -71,24 +71,3 @@ resource "flux_bootstrap_git" "this" {
   delete_git_manifests = false
   path                 = "clusters/yojimbo"
 }
-
-resource "kubernetes_namespace" "external_secrets" {
-  depends_on = [module.talos]
-  metadata {
-    name = "external-secrets"
-  }
-}
-
-resource "kubernetes_secret" "vault_token" {
-  depends_on = [kubernetes_namespace.external_secrets]
-  metadata {
-    name      = "vault-token"
-    namespace = kubernetes_namespace.external_secrets.metadata[0].name
-  }
-
-  type = "Opaque"
-
-  data = {
-    token = var.vault_token
-  }
-}

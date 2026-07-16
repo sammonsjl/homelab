@@ -16,10 +16,3 @@ variable "github_repository" {
   type        = string
   default     = ""
 }
-
-variable "vault_token" {
-  type        = string
-  sensitive   = true
-  description = "Vault token to be stored in the secret"
-  default     = ""
-}
