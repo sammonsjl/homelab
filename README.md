@@ -105,7 +105,7 @@ Everything needed to run my cluster & deploy my applications
     <tr>
         <td><img width="32" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaudD4vHFe5vlnOLlJAC6nc5y_do3vB-QxlA&s"></td>
         <td><a href="https://external-secrets.io/latest/">External Secrets Operator</a></td>
-        <td>Used to sync my secrets from Azure Key Vaults to my cluster</td>
+        <td>Used to sync my secrets from HashiCorp Vault to my cluster</td>
     </tr>
     <tr>
         <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/flux-cd.svg"></td>
