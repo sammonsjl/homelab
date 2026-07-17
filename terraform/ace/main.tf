@@ -25,11 +25,12 @@ resource "proxmox_virtual_environment_vm" "ace" {
   bios          = "seabios"
 
   # GenericCloud images ship without qemu-guest-agent and the API-generated
-  # cloud-init (user_account) can't install packages; enabling the agent here
-  # would hang the apply. Install qemu-guest-agent over SSH after first boot,
-  # then flip this on.
+  # cloud-init (user_account) can't install packages; enabling the agent on
+  # first create would hang the apply. Create with the default (false),
+  # install qemu-guest-agent over SSH, then re-apply with agent_enabled=true
+  # and reboot the VM.
   agent {
-    enabled = false
+    enabled = var.agent_enabled
   }
 
   cpu {
