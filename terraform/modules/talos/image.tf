@@ -26,11 +26,13 @@ data "http" "updated_schematic_id" {
 resource "proxmox_virtual_environment_download_file" "this" {
   for_each = toset(distinct([for k, v in var.nodes : "${v.host_node}_${v.update == true ? local.update_image_id : local.image_id}"]))
 
-  node_name    = split("_", each.key)[0]
-  content_type = "iso"
+  node_name = split("_", each.key)[0]
+  # "import" content lets the VM disk use import_from (API-based import,
+  # PVE 8.2+) instead of file_id, which needs SSH access to the node
+  content_type = "import"
   datastore_id = var.image.proxmox_datastore
 
-  file_name               = "${var.cluster.name}-talos-${split("_", each.key)[1]}-${split("_", each.key)[2]}-${var.image.platform}-${var.image.arch}.img"
+  file_name               = "${var.cluster.name}-talos-${split("_", each.key)[1]}-${split("_", each.key)[2]}-${var.image.platform}-${var.image.arch}.raw"
   url                     = "${var.image.factory_url}/image/${split("_", each.key)[1]}/${split("_", each.key)[2]}/${var.image.platform}-${var.image.arch}.raw.gz"
   decompression_algorithm = "gz"
   overwrite               = false
