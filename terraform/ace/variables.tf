@@ -69,3 +69,9 @@ variable "ssh_public_key" {
   description = "SSH public key for the admin user"
   type        = string
 }
+
+variable "agent_enabled" {
+  description = "Enable the QEMU guest agent device. Keep false for the first create (the image has no agent installed); set true once qemu-guest-agent is installed in the guest."
+  type        = bool
+  default     = false
+}
