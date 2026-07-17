@@ -1,0 +1,11 @@
+------ IN CONTEXT: PARTIALLY TRUNCATED (338 characters) ------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iscsiadm-wrapper
+  namespace: synology-csi
+data:
+  iscsiadm: |
+    #!/bin/sh
+    # Talos has no /usr/bin/env on the host, so upstream's --chroot-dir
+    # approach can't work. Instead

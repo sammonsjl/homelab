@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - controller.yaml
   - csi-driver.yaml
+  - iscsiadm-wrapper.yaml
   - externalsecrets.yaml
   - namespace.yaml
   - node.yaml
