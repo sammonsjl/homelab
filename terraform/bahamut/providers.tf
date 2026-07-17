@@ -11,7 +11,7 @@ provider "flux" {
     url    = "ssh://git@github.com/${var.github_org}/${var.github_repository}.git"
     ssh = {
       username    = "git"
-      private_key = file(pathexpand("~/.ssh/id_ed25519"))
+      private_key = file(pathexpand("~/.ssh/id_rsa"))
     }
   }
 }
