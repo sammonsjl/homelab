@@ -15,3 +15,16 @@ subjects:
   - kind: ServiceAccount
     name: external-secrets
     namespace: external-secrets
+---
+# Long-lived apiserver-audience token for Vault's token_reviewer_jwt.
+# Vault can't use ESO's audience-scoped login JWTs to call TokenReview
+# (the apiserver 401s them), so it needs this dedicated reviewer token.
+# No data in git — kube-controller-manager fills it in.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-token-reviewer
+  namespace: external-secrets
+  annotations:
+    kubernetes.io/service-account.name: external-secrets
+type: kubernetes.io/service-account-token
