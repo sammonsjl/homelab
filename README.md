@@ -35,49 +35,55 @@ Below is my current list of Kubernetes Clusters and their functions:
     </tr>
 </table>
 
-## Architecture
+## ACE on Kubernetes: Control Plane & Execution Plane
+
+[ACE](https://github.com/sammonsjl/ace-containerized-installer) — my open-source
+Ansible Automation Platform clone — splits cleanly into two planes. The
+**control plane** (UI, API, scheduler) runs as rootless podman containers on a
+dedicated VM and holds no automation workload itself. The **execution plane**
+is the Yojimbo Kubernetes cluster: every job runs as an ephemeral pod inside a
+locked-down `ace-jobs` namespace and disappears when it finishes.
 
 ```mermaid
-flowchart TB
-    subgraph external["☁️ External"]
-        GH[("GitHub<br/>sammonsjl/homelab · main")]
-        CF["Cloudflare<br/>Tunnel + Access<br/>neokube.net"]
+flowchart LR
+    user(["👤 Operator<br/>https://192.168.1.40"])
+
+    subgraph cp["🎛️ CONTROL PLANE · ACE VM · Rocky 9 · podman"]
+        direction TB
+        envoy["envoy :443<br/>platform UI + API"]
+        gateway["gateway<br/>auth · service mesh"]
+        controller["controller · AWX<br/>projects · templates · scheduler"]
+        receptor["receptor<br/>work dispatcher"]
+        envoy --> gateway --> controller --> receptor
     end
 
-    subgraph lud["🖥️ Proxmox host · lud · 192.168.1.3"]
-        subgraph yojimbo["Yojimbo · PRD · Talos v1.13.6 · K8s v1.36"]
-            flux["Flux v2.9<br/>GitOps"]
-            cilium["Cilium 1.19.5<br/>Gateway API v1.4.1"]
-            eso["External Secrets<br/>Operator"]
-            csi["synology-csi<br/>nfs-csi"]
-            apps["Ghost · PXC · Grafana<br/>external-dns · Homepage"]
-            acejobs["ace-jobs namespace<br/>SA · Role · token"]
+    subgraph ep["⚙️ EXECUTION PLANE · Yojimbo · Talos Kubernetes"]
+        direction TB
+        api["kube-apiserver<br/>192.168.1.20:6443"]
+        subgraph ns["namespace: ace-jobs"]
+            sa["ServiceAccount ace-jobs<br/>Role: pods · pods/log<br/>pods/attach · pods/exec"]
+            pod["ephemeral job pod<br/>awx-ee · ansible-runner"]
         end
-        subgraph acevm["ACE VM · Rocky 9 · 192.168.1.40"]
-            envoy["envoy :443<br/>platform UI"]
-            gateway["gateway"]
-            controller["controller · AWX"]
-            receptor["receptor"]
-        end
+        other["every other namespace"]
+        api --> ns
     end
 
-    subgraph nas["💾 Synology DS224+ · 192.168.1.4"]
-        vault[("Vault 2.0<br/>kv secrets/")]
-        iscsi[("iSCSI LUNs")]
-        nfs[("NFS<br/>k8s-nfs-yojimbo")]
-    end
-
-    GH -- "flux sync · main" --> flux
-    CF -- "tunnel" --> apps
-    envoy --> gateway --> controller --> receptor
-    receptor -- "kubernetes-runtime-auth<br/>bearer token" --> acejobs
-    acejobs -. "ephemeral job pods<br/>awx-ee" .-> acejobs
-    eso -- "kubernetes auth<br/>kubernetes-yojimbo mount" --> vault
-    csi -- "block volumes" --> iscsi
-    csi -- "RWX volumes" --> nfs
+    user --> envoy
+    receptor == "① submit work<br/>kubernetes-runtime-auth<br/>bearer token + CA" ==> api
+    api == "② create pod" ==> pod
+    pod == "③ stream stdout<br/>④ auto-delete on finish" ==> receptor
+    receptor -. "🚫 Forbidden<br/>namespace-scoped RBAC" .-> other
 ```
 
-The flow in one pass: Terraform provisions the Talos VMs and the ACE VM on Proxmox, then hands the cluster to **Flux**, which reconciles everything under `clusters/`, `infrastructure/` and `apps/` from this repo's `main` branch. Secrets come from **Vault** on the NAS via External Secrets Operator using the Kubernetes auth method (no static tokens). Storage is provisioned on the NAS over iSCSI (block) and NFS (shared). Public traffic reaches Ghost through a **Cloudflare Tunnel** guarded by Cloudflare Access. **ACE** — my open-source Ansible Automation Platform clone — runs its control plane as rootless podman containers on a dedicated VM ([ace-containerized-installer](https://github.com/sammonsjl/ace-containerized-installer)) and executes automation jobs as ephemeral pods on Yojimbo through a locked-down `ace-jobs` namespace: the receptor submits `kubernetes-runtime-auth` work using a namespace-scoped ServiceAccount token, so the control plane can run, watch and clean up job pods there — and nothing else.
+The contract between the planes is deliberately small: a ServiceAccount, a
+namespace-scoped Role (create/watch/delete pods plus logs, attach and exec) and
+a long-lived token — all declared in
+[`infrastructure/configs/yojimbo/ace-jobs/`](infrastructure/configs/yojimbo/ace-jobs/)
+and reconciled by Flux like everything else. When a job launches, the receptor
+submits `kubernetes-runtime-auth` work to the cluster API using that token,
+the pod runs the playbook, output streams back to the controller, and the pod
+is deleted. The token can run jobs in `ace-jobs` and nothing else — anything
+outside the namespace is Forbidden by RBAC.
 
 ## :computer: Hardware
 
