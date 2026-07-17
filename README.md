@@ -35,6 +35,50 @@ Below is my current list of Kubernetes Clusters and their functions:
     </tr>
 </table>
 
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph external["☁️ External"]
+        GH[("GitHub<br/>sammonsjl/homelab · main")]
+        CF["Cloudflare<br/>Tunnel + Access<br/>neokube.net"]
+    end
+
+    subgraph lud["🖥️ Proxmox host · lud · 192.168.1.3"]
+        subgraph yojimbo["Yojimbo · PRD · Talos v1.13.6 · K8s v1.36"]
+            flux["Flux v2.9<br/>GitOps"]
+            cilium["Cilium 1.19.5<br/>Gateway API v1.4.1"]
+            eso["External Secrets<br/>Operator"]
+            csi["synology-csi<br/>nfs-csi"]
+            apps["Ghost · PXC · Grafana<br/>external-dns · Homepage"]
+            acejobs["ace-jobs namespace<br/>SA · Role · token"]
+        end
+        subgraph acevm["ACE VM · Rocky 9 · 192.168.1.40"]
+            envoy["envoy :443<br/>platform UI"]
+            gateway["gateway"]
+            controller["controller · AWX"]
+            receptor["receptor"]
+        end
+    end
+
+    subgraph nas["💾 Synology DS224+ · 192.168.1.4"]
+        vault[("Vault 2.0<br/>kv secrets/")]
+        iscsi[("iSCSI LUNs")]
+        nfs[("NFS<br/>k8s-nfs-yojimbo")]
+    end
+
+    GH -- "flux sync · main" --> flux
+    CF -- "tunnel" --> apps
+    envoy --> gateway --> controller --> receptor
+    receptor -- "kubernetes-runtime-auth<br/>bearer token" --> acejobs
+    acejobs -. "ephemeral job pods<br/>awx-ee" .-> acejobs
+    eso -- "kubernetes auth<br/>kubernetes-yojimbo mount" --> vault
+    csi -- "block volumes" --> iscsi
+    csi -- "RWX volumes" --> nfs
+```
+
+The flow in one pass: Terraform provisions the Talos VMs and the ACE VM on Proxmox, then hands the cluster to **Flux**, which reconciles everything under `clusters/`, `infrastructure/` and `apps/` from this repo's `main` branch. Secrets come from **Vault** on the NAS via External Secrets Operator using the Kubernetes auth method (no static tokens). Storage is provisioned on the NAS over iSCSI (block) and NFS (shared). Public traffic reaches Ghost through a **Cloudflare Tunnel** guarded by Cloudflare Access. **ACE** — my open-source Ansible Automation Platform clone — runs its control plane as rootless podman containers on a dedicated VM ([ace-containerized-installer](https://github.com/sammonsjl/ace-containerized-installer)) and executes automation jobs as ephemeral pods on Yojimbo through a locked-down `ace-jobs` namespace: the receptor submits `kubernetes-runtime-auth` work using a namespace-scoped ServiceAccount token, so the control plane can run, watch and clean up job pods there — and nothing else.
+
 ## :computer: Hardware
 
 ### Nodes
