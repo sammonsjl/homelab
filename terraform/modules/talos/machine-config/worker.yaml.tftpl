@@ -3,8 +3,8 @@ machine:
   kubelet:
     extraArgs:
       rotate-server-certificates: true
-  network:
-    hostname: ${hostname}
+  # hostname comes from the Proxmox cloud-init drive (VM name); Talos 1.13+
+  # rejects setting it here as well
   nodeLabels:
     topology.kubernetes.io/region: ${cluster_name}
     topology.kubernetes.io/zone: ${node_name}
