@@ -53,8 +53,8 @@ variable "datastore_id" {
   default     = "local-lvm"
 }
 
-variable "snippets_datastore_id" {
-  description = "Datastore holding the cloud-init user-data snippet (must have the Snippets content type enabled)"
+variable "image_datastore_id" {
+  description = "Datastore holding the downloaded cloud image (must have the Import content type enabled)"
   type        = string
   default     = "local"
 }
