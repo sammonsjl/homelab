@@ -4,6 +4,10 @@ metadata:
   name: kube-prometheus-stack
 spec:
   interval: 30m
+  # grafana's local-path PVC pins it to one node; rolling upgrades can take
+  # several minutes to schedule there, exceeding Helm's default 5m timeout and
+  # marking the release failed even though pods come up fine. Give it headroom.
+  timeout: 15m
   chart:
     spec:
       chart: kube-prometheus-stack
