@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigestsToSemver"
+  ],
+  "dependencyDashboardTitle": "Renovate Dependency Dashboard",
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "flux": {
+    "managerFilePatterns": [
+      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)infrastructure/.+\\.ya?ml$/",
+      "/(^|/)clusters/.+\\.ya?ml$/"
+    ]
+  },
+  "helm-values": {
+    "managerFilePatterns": [
+      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)infrastructure/.+\\.ya?ml$/"
+    ]
+  },
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/(^|/)apps/.+\\.ya?ml$/",
+      "/(^|/)infrastructure/.+\\.ya?ml$/"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Group Flux controller image bumps into a single PR",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/fluxcd/**"],
+      "groupName": "flux controllers"
+    },
+    {
+      "description": "Group Kubernetes CSI sidecar image bumps",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["registry.k8s.io/sig-storage/**"],
+      "groupName": "csi sidecars"
+    },
+    {
+      "description": "Group Terraform provider bumps together",
+      "matchManagers": ["terraform"],
+      "matchDepTypes": ["required_provider", "provider"],
+      "groupName": "terraform providers"
+    },
+    {
+      "description": "Pin mutable image tags to a digest so we track what actually ships",
+      "matchDatasources": ["docker"],
+      "matchCurrentValue": "/^(latest|main|stable.*)$/",
+      "pinDigests": true
+    },
+    {
+      "description": "Auto-merge digest-only updates for already-pinned mutable tags",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    }
+  ]
+}
