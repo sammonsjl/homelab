@@ -6,7 +6,7 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "3.8.0"
+      version = "4.5.0"
     }
     flux = {
       source  = "fluxcd/flux"
