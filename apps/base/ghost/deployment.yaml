@@ -38,7 +38,7 @@ spec:
       initContainers:
         - name: permissions-fix
           imagePullPolicy: Always
-          image: docker.io/busybox:stable-musl
+          image: docker.io/busybox:stable-musl@sha256:3c6ae8008e2c2eedd141725c30b20d9c36b026eb796688f88205845ef17aa213
           env:
             - name: GHOST_INSTALL
               value: /home/nonroot/app/ghost
@@ -79,7 +79,7 @@ spec:
               readOnly: false
       containers:
         - name: ghost
-          image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main
+          image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main@sha256:71132a1e743f3ae4912c595866dd1a00911619f0509aec5b88d65077ac1a7ae5
           imagePullPolicy: Always
           ports:
             - name: http
