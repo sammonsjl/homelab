@@ -19,6 +19,18 @@ spec:
   path: ./config/default
   prune: true
   wait: false
+  # gcr.io/kubebuilder/kube-rbac-proxy no longer exists — Google removed that
+  # registry, so both operators ship a manifest that cannot pull. brancz's quay
+  # mirror is the image the project moved to, and is what awx-operator already
+  # uses in this cluster.
+  patches:
+    - target:
+        kind: Deployment
+        name: .*controller-manager
+      patch: |
+        - op: replace
+          path: /spec/template/spec/containers/0/image
+          value: quay.io/brancz/kube-rbac-proxy:v0.15.0
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -37,3 +49,15 @@ spec:
   path: ./config/default
   prune: true
   wait: false
+  # gcr.io/kubebuilder/kube-rbac-proxy no longer exists — Google removed that
+  # registry, so both operators ship a manifest that cannot pull. brancz's quay
+  # mirror is the image the project moved to, and is what awx-operator already
+  # uses in this cluster.
+  patches:
+    - target:
+        kind: Deployment
+        name: .*controller-manager
+      patch: |
+        - op: replace
+          path: /spec/template/spec/containers/0/image
+          value: quay.io/brancz/kube-rbac-proxy:v0.15.0
