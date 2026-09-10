@@ -9,10 +9,11 @@
 #   registry — so the sidecar cannot pull and the controller never starts.
 #
 #   WATCH_NAMESPACE comes from a fieldRef to the operator's own namespace, so
-#   each watches only where it is installed and silently ignores CRs anywhere
-#   else, logging "Watching namespaces: [galaxy]" and then nothing at all.
-#   Empty means every namespace, which the cluster-wide RBAC in
-#   infrastructure/controllers/yojimbo/ace grants them.
+#   each watches only where it is installed. Setting it empty does NOT widen
+#   that in this operator-sdk build — it still resolves to the pod's namespace
+#   and logs "Watching namespaces: [galaxy]". So they are installed INTO the
+#   platform's namespace instead, which is where awx-operator already runs and
+#   why that one worked from the start.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -28,6 +29,7 @@ spec:
     kind: GitRepository
     name: galaxy-operator
   path: ./config/default
+  targetNamespace: ace
   prune: true
   wait: false
   patches:
@@ -45,10 +47,6 @@ spec:
               containers:
                 - name: kube-rbac-proxy
                   image: quay.io/brancz/kube-rbac-proxy:v0.15.0
-                - name: galaxy-operator
-                  env:
-                    - name: WATCH_NAMESPACE
-                      value: ""
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -65,6 +63,7 @@ spec:
     kind: GitRepository
     name: eda-server-operator
   path: ./config/default
+  targetNamespace: ace
   prune: true
   wait: false
   patches:
@@ -82,7 +81,3 @@ spec:
               containers:
                 - name: kube-rbac-proxy
                   image: quay.io/brancz/kube-rbac-proxy:v0.15.0
-                - name: eda-manager
-                  env:
-                    - name: WATCH_NAMESPACE
-                      value: ""
