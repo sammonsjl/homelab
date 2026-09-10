@@ -34,7 +34,7 @@ provider "flux" {
 }
 
 provider "proxmox" {
-  endpoint  = "https://192.168.1.3:8006"
+  endpoint  = "https://192.168.1.2:8006"
   insecure  = true
   api_token = var.proxmox_token
   ssh {

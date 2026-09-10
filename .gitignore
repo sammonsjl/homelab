@@ -2,3 +2,8 @@
 **/terraform.tfstate**
 **/.env_vars
 **/output/**
+
+# AppleDouble metadata from the Synology share
+._*
+**/._*
+.claude/

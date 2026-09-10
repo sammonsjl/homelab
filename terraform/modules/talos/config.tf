@@ -47,6 +47,12 @@ resource "talos_machine_configuration_apply" "this" {
 }
 
 resource "talos_machine_bootstrap" "this" {
+  # Without this, bootstrap depends only on machine_secrets, so terraform
+  # starts it in parallel with the image download and VM creation — it then
+  # spins for its whole timeout against nodes that do not exist yet. Bootstrap
+  # is only meaningful once a node has its configuration.
+  depends_on = [talos_machine_configuration_apply.this]
+
   node                 = [for k, v in var.nodes : v.ip if v.machine_type == "controlplane"][0]
   endpoint             = var.cluster.endpoint
   client_configuration = talos_machine_secrets.this.client_configuration
