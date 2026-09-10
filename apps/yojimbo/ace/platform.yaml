@@ -16,6 +16,8 @@ spec:
   gateway:
     external_url: https://ace.sammons.io
     replicas: 1
+    # Pinned for the same reason as every other component below.
+    image: ghcr.io/sammonsjl/ace-gateway:20260910-11f2029
 
   # All three components. galaxy-operator and eda-server-operator are
   # installed alongside awx-operator, so each sub-CR has a reconciler.
