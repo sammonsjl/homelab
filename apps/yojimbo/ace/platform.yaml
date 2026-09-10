@@ -29,6 +29,7 @@ spec:
   hub:
     enabled: true
     replicas: 1
+    image: ghcr.io/sammonsjl/ace-hub:20260910-385a562
   eda:
     enabled: true
     replicas: 1
