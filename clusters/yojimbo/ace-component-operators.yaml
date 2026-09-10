@@ -2,6 +2,17 @@
 # The component operators ACE hands sub-CRs to. They reconcile Galaxy and EDA
 # the way awx-operator reconciles AWX; ACE drives them rather than replacing
 # them, so their CRDs have to exist before a platform enables those components.
+#
+# Both need two corrections to their shipped manifests:
+#
+#   gcr.io/kubebuilder/kube-rbac-proxy no longer exists — Google removed that
+#   registry — so the sidecar cannot pull and the controller never starts.
+#
+#   WATCH_NAMESPACE comes from a fieldRef to the operator's own namespace, so
+#   each watches only where it is installed and silently ignores CRs anywhere
+#   else, logging "Watching namespaces: [galaxy]" and then nothing at all.
+#   Empty means every namespace, which the cluster-wide RBAC in
+#   infrastructure/controllers/yojimbo/ace grants them.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -19,18 +30,25 @@ spec:
   path: ./config/default
   prune: true
   wait: false
-  # gcr.io/kubebuilder/kube-rbac-proxy no longer exists — Google removed that
-  # registry, so both operators ship a manifest that cannot pull. brancz's quay
-  # mirror is the image the project moved to, and is what awx-operator already
-  # uses in this cluster.
   patches:
     - target:
         kind: Deployment
         name: .*controller-manager
       patch: |
-        - op: replace
-          path: /spec/template/spec/containers/0/image
-          value: quay.io/brancz/kube-rbac-proxy:v0.15.0
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ignored
+        spec:
+          template:
+            spec:
+              containers:
+                - name: kube-rbac-proxy
+                  image: quay.io/brancz/kube-rbac-proxy:v0.15.0
+                - name: galaxy-operator
+                  env:
+                    - name: WATCH_NAMESPACE
+                      value: ""
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
@@ -49,15 +67,22 @@ spec:
   path: ./config/default
   prune: true
   wait: false
-  # gcr.io/kubebuilder/kube-rbac-proxy no longer exists — Google removed that
-  # registry, so both operators ship a manifest that cannot pull. brancz's quay
-  # mirror is the image the project moved to, and is what awx-operator already
-  # uses in this cluster.
   patches:
     - target:
         kind: Deployment
         name: .*controller-manager
       patch: |
-        - op: replace
-          path: /spec/template/spec/containers/0/image
-          value: quay.io/brancz/kube-rbac-proxy:v0.15.0
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ignored
+        spec:
+          template:
+            spec:
+              containers:
+                - name: kube-rbac-proxy
+                  image: quay.io/brancz/kube-rbac-proxy:v0.15.0
+                - name: eda-manager
+                  env:
+                    - name: WATCH_NAMESPACE
+                      value: ""
