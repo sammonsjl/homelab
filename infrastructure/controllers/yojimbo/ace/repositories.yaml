@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 12h
-  url: https://ansible.github.io/awx-operator/
+  url: https://ansible-community.github.io/awx-operator-helm/
 ---
 # The ACE operator's manifests live in the repo that owns the code, so Flux
 # tracks that repo directly rather than carrying a copy here that would drift.
