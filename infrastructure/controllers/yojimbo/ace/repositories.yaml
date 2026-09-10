@@ -20,3 +20,28 @@ spec:
   url: https://github.com/sammonsjl/ace-operator
   ref:
     branch: main
+---
+# Neither of these ships a Helm chart, so Flux tracks the repos and applies
+# their kustomize bases. Pinned to a release tag rather than main: an operator
+# that changes under a running platform is the thing pinning exists to prevent.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: galaxy-operator
+  namespace: flux-system
+spec:
+  interval: 12h
+  url: https://github.com/ansible/galaxy-operator
+  ref:
+    tag: "2024.5.8"
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: eda-server-operator
+  namespace: flux-system
+spec:
+  interval: 12h
+  url: https://github.com/ansible/eda-server-operator
+  ref:
+    tag: "1.0.2"
