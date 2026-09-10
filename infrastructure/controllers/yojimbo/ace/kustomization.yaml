@@ -5,3 +5,4 @@ resources:
   - namespace.yaml
   - repositories.yaml
   - release.yaml
+  - component-operator-rbac.yaml

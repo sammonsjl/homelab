@@ -1,0 +1,396 @@
+---
+# galaxy-operator and eda-server-operator both run with WATCH_NAMESPACE="" —
+# every namespace — but ship their custom-resource permissions as a Role scoped
+# to their own namespace. The result is an operator that starts cleanly, logs
+# "Starting workers", and silently never reconciles a CR anywhere else:
+#
+#   kubectl auth can-i watch galaxies -n ace --as=...galaxy-operator-sa  ->  no
+#
+# These promote each operator's own rules to cluster scope, unchanged.
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "ClusterRole",
+  "metadata": {
+    "name": "galaxy-operator-galaxy-operator-role-clusterwide"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        "route.openshift.io"
+      ],
+      "resources": [
+        "routes",
+        "routes/custom-host"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "",
+        "rbac.authorization.k8s.io"
+      ],
+      "resources": [
+        "secrets",
+        "pods",
+        "pods/exec",
+        "pods/log",
+        "services",
+        "services/finalizers",
+        "endpoints",
+        "persistentvolumeclaims",
+        "events",
+        "configmaps",
+        "roles",
+        "rolebindings",
+        "serviceaccounts"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps",
+        "networking.k8s.io"
+      ],
+      "resources": [
+        "deployments",
+        "daemonsets",
+        "replicasets",
+        "statefulsets",
+        "ingresses"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "nodes"
+      ],
+      "verbs": [
+        "get",
+        "list"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments/scale"
+      ],
+      "verbs": [
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "serviceaccounts"
+      ],
+      "verbs": [
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resourceNames": [
+        "galaxy-operator-sa"
+      ],
+      "resources": [
+        "serviceaccounts"
+      ],
+      "verbs": [
+        "patch",
+        "get"
+      ]
+    },
+    {
+      "apiGroups": [
+        "batch"
+      ],
+      "resources": [
+        "jobs"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "create",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "galaxy.ansible.com"
+      ],
+      "resources": [
+        "galaxies",
+        "galaxies/status",
+        "galaxies/finalizers",
+        "galaxybackups",
+        "galaxybackups/status",
+        "galaxybackups/finalizers",
+        "galaxyrestores",
+        "galaxyrestores/status",
+        "galaxyrestores/finalizers"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "ClusterRoleBinding",
+  "metadata": {
+    "name": "galaxy-operator-galaxy-operator-role-clusterwide"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "ClusterRole",
+    "name": "galaxy-operator-galaxy-operator-role-clusterwide"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "galaxy-operator-sa",
+      "namespace": "galaxy"
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "ClusterRole",
+  "metadata": {
+    "name": "eda-server-operator-eda-manager-role-clusterwide"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "secrets",
+        "pods",
+        "pods/exec",
+        "pods/log"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments",
+        "daemonsets",
+        "replicasets",
+        "statefulsets"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "route.openshift.io"
+      ],
+      "resources": [
+        "routes",
+        "routes/custom-host"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "create",
+        "delete",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "",
+        "rbac.authorization.k8s.io"
+      ],
+      "resources": [
+        "pods",
+        "services",
+        "services/finalizers",
+        "serviceaccounts",
+        "endpoints",
+        "persistentvolumeclaims",
+        "events",
+        "configmaps",
+        "secrets",
+        "roles",
+        "rolebindings"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "create",
+        "delete",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps",
+        "networking.k8s.io"
+      ],
+      "resources": [
+        "deployments",
+        "daemonsets",
+        "replicasets",
+        "statefulsets",
+        "ingresses"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "create",
+        "delete",
+        "patch",
+        "update",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods/exec",
+        "pods/attach",
+        "pods/log"
+      ],
+      "verbs": [
+        "create",
+        "get"
+      ]
+    },
+    {
+      "apiGroups": [
+        "",
+        "batch",
+        "extensions"
+      ],
+      "resources": [
+        "jobs"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch",
+        "delete"
+      ]
+    },
+    {
+      "apiGroups": [
+        "eda.ansible.com"
+      ],
+      "resources": [
+        "edas",
+        "edas/status",
+        "edas/finalizers",
+        "edabackups",
+        "edabackups/status",
+        "edabackups/finalizers",
+        "edarestores",
+        "edarestores/status",
+        "edarestores/finalizers"
+      ],
+      "verbs": [
+        "create",
+        "delete",
+        "get",
+        "list",
+        "patch",
+        "update",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "ClusterRoleBinding",
+  "metadata": {
+    "name": "eda-server-operator-eda-manager-role-clusterwide"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "ClusterRole",
+    "name": "eda-server-operator-eda-manager-role-clusterwide"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "eda-server-operator-controller-manager",
+      "namespace": "eda-server-operator-system"
+    }
+  ]
+}
