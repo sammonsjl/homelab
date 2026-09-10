@@ -1,0 +1,20 @@
+---
+# The ACE operator is installed from the repo that owns it, so its CRD, RBAC
+# and Deployment never drift from the reconcile code they run.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: ace-operator
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: infra-controllers
+  interval: 30m
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: ace-operator
+  path: ./config
+  prune: true
+  wait: true

@@ -1,0 +1,22 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: awx-operator
+  namespace: flux-system
+spec:
+  interval: 12h
+  url: https://ansible.github.io/awx-operator/
+---
+# The ACE operator's manifests live in the repo that owns the code, so Flux
+# tracks that repo directly rather than carrying a copy here that would drift.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: ace-operator
+  namespace: flux-system
+spec:
+  interval: 10m
+  url: https://github.com/sammonsjl/ace-operator
+  ref:
+    branch: main
