@@ -1,0 +1,35 @@
+---
+# One resource describes the whole platform. The operator deploys the gateway
+# itself, then renders a sub-CR per enabled component for that component's own
+# operator to reconcile.
+#
+# Order is not a detail here: the gateway must be running before any component
+# is deployed, because the init chain that issues each component's service
+# secret runs inside the gateway pod. The operator enforces that; this file
+# only says what should exist.
+apiVersion: automation.ace.io/v1alpha1
+kind: AutomationPlatform
+metadata:
+  name: ace
+  namespace: ace
+spec:
+  gateway:
+    external_url: https://ace.sammons.io
+    replicas: 1
+
+  # Start with the controller alone. hub and eda need galaxy-operator and
+  # eda-server-operator installed, which is a separate step; enabling them
+  # before those exist would leave sub-CRs with no reconciler.
+  controller:
+    enabled: true
+    replicas: 1
+  hub:
+    enabled: false
+  eda:
+    enabled: false
+
+  postgres:
+    managed: true
+    storage_size: 20Gi
+  redis:
+    managed: true
