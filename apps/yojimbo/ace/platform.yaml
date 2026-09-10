@@ -33,6 +33,7 @@ spec:
   eda:
     enabled: true
     replicas: 1
+    image: ghcr.io/sammonsjl/ace-eda:20260910-11f2029
 
   # Immutable tags for the same reason as the controller: a node that has
   # already cached :latest will not pick up a rebuild, and the failure shows
