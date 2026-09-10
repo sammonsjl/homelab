@@ -32,6 +32,11 @@ spec:
   eda:
     enabled: false
 
+  # Immutable tags for the same reason as the controller: a node that has
+  # already cached :latest will not pick up a rebuild, and the failure shows
+  # up as the old bug reappearing.
+  ee_image: ghcr.io/sammonsjl/ace-ee-minimal:20260910-c5b966e
+
   postgres:
     managed: true
     storage_size: 20Gi
