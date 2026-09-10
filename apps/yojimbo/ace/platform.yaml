@@ -17,9 +17,8 @@ spec:
     external_url: https://ace.sammons.io
     replicas: 1
 
-  # Start with the controller alone. hub and eda need galaxy-operator and
-  # eda-server-operator installed, which is a separate step; enabling them
-  # before those exist would leave sub-CRs with no reconciler.
+  # All three components. galaxy-operator and eda-server-operator are
+  # installed alongside awx-operator, so each sub-CR has a reconciler.
   controller:
     enabled: true
     replicas: 1
@@ -28,9 +27,11 @@ spec:
     # old one keeps failing in a way that looks like the fix did not work.
     image: ghcr.io/sammonsjl/ace-controller:20260910-b8dc9e6
   hub:
-    enabled: false
+    enabled: true
+    replicas: 1
   eda:
-    enabled: false
+    enabled: true
+    replicas: 1
 
   # Immutable tags for the same reason as the controller: a node that has
   # already cached :latest will not pick up a rebuild, and the failure shows
