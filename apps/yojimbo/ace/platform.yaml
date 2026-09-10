@@ -23,6 +23,10 @@ spec:
   controller:
     enabled: true
     replicas: 1
+    # An immutable tag, not :latest. A floating tag plus a node that has
+    # already cached it means a rebuilt image never reaches the pods, and the
+    # old one keeps failing in a way that looks like the fix did not work.
+    image: ghcr.io/sammonsjl/ace-controller:20260910-b8dc9e6
   hub:
     enabled: false
   eda:
