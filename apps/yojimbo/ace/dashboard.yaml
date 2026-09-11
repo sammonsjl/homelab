@@ -35,17 +35,7 @@ data:
       "editable": true,
       "graphTooltip": 1,
       "templating": {
-        "list": [
-          {
-            "name": "DS_PROMETHEUS",
-            "type": "datasource",
-            "query": "prometheus",
-            "current": {},
-            "hide": 0,
-            "label": "Data source",
-            "refresh": 1
-          }
-        ]
+        "list": []
       },
       "panels": [
         {
@@ -66,7 +56,7 @@ data:
           "description": "Available replicas of ace-gateway. 0 means the component is down.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -78,7 +68,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "kube_deployment_status_replicas_available{namespace=\"ace\",deployment=\"ace-gateway\"}",
               "legendFormat": "",
@@ -128,7 +118,7 @@ data:
           "description": "Available replicas of ace-controller-web. 0 means the component is down.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -140,7 +130,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "kube_deployment_status_replicas_available{namespace=\"ace\",deployment=\"ace-controller-web\"}",
               "legendFormat": "",
@@ -190,7 +180,7 @@ data:
           "description": "Available replicas of ace-hub-api. 0 means the component is down.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -202,7 +192,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "kube_deployment_status_replicas_available{namespace=\"ace\",deployment=\"ace-hub-api\"}",
               "legendFormat": "",
@@ -252,7 +242,7 @@ data:
           "description": "Available replicas of ace-eda-api. 0 means the component is down.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -264,7 +254,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "kube_deployment_status_replicas_available{namespace=\"ace\",deployment=\"ace-eda-api\"}",
               "legendFormat": "",
@@ -314,7 +304,7 @@ data:
           "description": "Jobs accepted but not yet dispatched. A number that stays above zero means no instance has capacity.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -326,7 +316,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_pending_jobs_total",
               "legendFormat": "",
@@ -376,7 +366,7 @@ data:
           "description": "",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -388,7 +378,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_running_jobs_total",
               "legendFormat": "",
@@ -446,7 +436,7 @@ data:
           "description": "Both are counts of jobs, so they share one axis. Pending rising while running is flat is the signature of a capacity problem rather than a busy platform.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 8,
@@ -458,7 +448,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_running_jobs_total",
               "legendFormat": "running",
@@ -469,7 +459,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_pending_jobs_total",
               "legendFormat": "pending",
@@ -515,7 +505,7 @@ data:
           "description": "AWX capacity units across control instances. Total dropping to zero means the task pod stopped heartbeating -- jobs then sit in pending.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 8,
@@ -527,7 +517,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "sum(awx_instance_capacity)",
               "legendFormat": "total",
@@ -538,7 +528,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "sum(awx_instance_consumed_capacity)",
               "legendFormat": "consumed",
@@ -596,7 +586,7 @@ data:
           "description": "",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -608,7 +598,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_job_templates_total",
               "legendFormat": "",
@@ -654,7 +644,7 @@ data:
           "description": "",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -666,7 +656,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_projects_total",
               "legendFormat": "",
@@ -712,7 +702,7 @@ data:
           "description": "",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -724,7 +714,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_inventories_total",
               "legendFormat": "",
@@ -770,7 +760,7 @@ data:
           "description": "Hosts across all inventories.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -782,7 +772,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_hosts_total{type=\"all\"}",
               "legendFormat": "",
@@ -828,7 +818,7 @@ data:
           "description": "",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -840,7 +830,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_organizations_total",
               "legendFormat": "",
@@ -886,7 +876,7 @@ data:
           "description": "Users known to the controller. The gateway owns identity, so these arrive by resource sync.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 4,
@@ -898,7 +888,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "awx_users_total",
               "legendFormat": "",
@@ -956,7 +946,7 @@ data:
           "description": "Working set per pod. The controller web and task pods are the platform's largest consumers by a wide margin.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 9,
@@ -968,7 +958,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"ace\",container!=\"\",pod=~\"ace-.*\"})",
               "legendFormat": "{{pod}}",
@@ -1014,7 +1004,7 @@ data:
           "description": "Cores used per pod, averaged over 5 minutes.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 9,
@@ -1026,7 +1016,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"ace\",container!=\"\",pod=~\"ace-.*\"}[5m]))",
               "legendFormat": "{{pod}}",
@@ -1072,7 +1062,7 @@ data:
           "description": "Restarts in the last hour, by pod. Flat at zero is the expected state; a step means something crashlooped.",
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "prometheus"
           },
           "gridPos": {
             "h": 7,
@@ -1084,7 +1074,7 @@ data:
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "prometheus"
               },
               "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"ace\"}[1h]))",
               "legendFormat": "{{pod}}",
