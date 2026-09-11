@@ -1,0 +1,76 @@
+---
+# One MySQL, in the shape ACE runs its own database: a single StatefulSet with
+# a volume claim template and credentials from a Secret. This replaced a
+# three-node Percona XtraDB cluster with its own operator, whose HA the homelab
+# never needed -- it was the single largest memory reservation in the cluster
+# (roughly 6 GiB across three database pods and three haproxy pods) on nodes
+# that only have 8 GiB of allocatable memory each.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: mysql
+  labels:
+    app.kubernetes.io/name: mysql
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: mysql
+          image: docker.io/library/mysql:8.4
+          args:
+            # Ghost's schema predates the 8.4 default and still uses utf8mb3
+            # in places; keeping the server on utf8mb4 matches what the
+            # Percona cluster served and what the dump was taken from.
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_general_ci
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: mysql, key: MYSQL_ROOT_PASSWORD}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: mysql, key: MYSQL_PASSWORD}
+            - name: MYSQL_DATABASE
+              value: ghost
+            - name: MYSQL_USER
+              value: ghost
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "mysqladmin ping -h 127.0.0.1 -u root -p\"$MYSQL_ROOT_PASSWORD\""]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests: {cpu: 100m, memory: 512Mi}
+            limits: {memory: 2Gi}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        # Not the default local-path: node-local data does not survive losing
+        # a node, and this is the one database in the cluster with content
+        # worth keeping. The Percona volumes were on the same class, which is
+        # why the blog survived the rebuild.
+        storageClassName: synology-iscsi
+        resources:
+          requests:
+            storage: 8Gi
