@@ -35,6 +35,12 @@ spec:
         name: ace-operator
         namespace: flux-system
       interval: 10m
+      # Repackage whenever the git revision moves, not only when the chart
+      # version does. The default is ChartVersion, which means edits to the
+      # templates never reach the cluster unless someone also bumps
+      # Chart.yaml -- the RBAC fix was applied, upgraded to v2, and still
+      # served the old rules.
+      reconcileStrategy: Revision
   values:
     operator:
       image:
