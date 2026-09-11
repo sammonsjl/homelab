@@ -10,10 +10,16 @@ apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: ace-operator
-  namespace: ace-system
+  # The HelmRelease itself lives in flux-system. Putting it in ace-system
+  # cannot work on a fresh cluster: Flux has to create the object before
+  # anything has created that namespace, and install.createNamespace only
+  # covers the release's target, not where the resource is declared.
+  namespace: flux-system
 spec:
   interval: 30m
   timeout: 10m
+  targetNamespace: ace-system
+  storageNamespace: ace-system
   install:
     createNamespace: true
     crds: Create
