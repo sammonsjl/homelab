@@ -32,7 +32,7 @@ module "talos" {
       mac_address   = "BC:24:11:2E:C8:04"
       vm_id         = 105
       cpu           = 8
-      ram_dedicated = 6144
+      ram_dedicated = 9216
     }
     "yojimbo-ctrl-01" = {
       host_node     = "lud"
@@ -41,7 +41,7 @@ module "talos" {
       mac_address   = "BC:24:11:2E:C8:05"
       vm_id         = 106
       cpu           = 8
-      ram_dedicated = 6144
+      ram_dedicated = 9216
       igpu          = false
     }
     "yojimbo-ctrl-02" = {
@@ -50,18 +50,8 @@ module "talos" {
       ip            = "192.168.1.22"
       mac_address   = "BC:24:11:2E:C8:06"
       vm_id         = 107
-      cpu           = 4
-      ram_dedicated = 6144
-    }
-    "yojimbo-work-00" = {
-      host_node     = "lud"
-      machine_type  = "worker"
-      ip            = "192.168.1.23"
-      mac_address   = "BC:24:11:2E:C8:07"
-      vm_id         = 108
       cpu           = 8
-      ram_dedicated = 6144
-      igpu          = false
+      ram_dedicated = 9216
     }
   }
 }
