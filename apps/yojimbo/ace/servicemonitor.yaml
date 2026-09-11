@@ -1,0 +1,50 @@
+---
+# The metrics endpoint is the controller's, but it is only reachable through
+# the gateway: the component delegates authentication, so hitting
+# ace-controller-service directly returns 401. Scraping the gateway's envoy
+# port is the same path a user takes.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ace-metrics-auth
+  namespace: ace
+  labels:
+    app.kubernetes.io/name: ace
+stringData:
+  # Username only. The password stays in ace-admin-password, which the
+  # operator generates and which is never in git.
+  username: admin
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ace-controller
+  namespace: ace
+  labels:
+    app.kubernetes.io/name: ace
+spec:
+  # The operator labels its Services part-of/managed-by rather than by name,
+  # so the gateway is picked out by its port instead: it is the only ACE
+  # Service with one called https. Services without that port contribute no
+  # targets, so this selects exactly one endpoint.
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: ace
+      app.kubernetes.io/managed-by: ace-operator
+  endpoints:
+    - port: https
+      scheme: https
+      path: /api/controller/v2/metrics/
+      interval: 60s
+      scrapeTimeout: 30s
+      tlsConfig:
+        # The gateway serves its own self-signed certificate, and the SANs
+        # cover the Service name rather than whatever Prometheus dials.
+        insecureSkipVerify: true
+      basicAuth:
+        username:
+          name: ace-metrics-auth
+          key: username
+        password:
+          name: ace-admin-password
+          key: password
