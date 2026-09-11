@@ -24,6 +24,11 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["watch", "list"]
+  # v0.21 resolves service targets through EndpointSlices, not the legacy
+  # core/endpoints, and fails the same fatal way without them.
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "watch", "list"]
   - apiGroups: ["gateway.networking.k8s.io"]
     resources:
       [
