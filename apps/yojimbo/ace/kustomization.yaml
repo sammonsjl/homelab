@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - platform.yaml
   - servicemonitor.yaml
+  - dashboard.yaml
