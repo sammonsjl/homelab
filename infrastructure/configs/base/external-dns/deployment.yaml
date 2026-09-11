@@ -32,7 +32,9 @@ spec:
             - --registry=noop
             - --policy=upsert-only
             - --provider=pihole
-            - --pihole-api-version=6
+            # --pihole-api-version was removed in external-dns 0.22; the
+            # provider detects the Pi-hole API version itself now, and
+            # passing it is a fatal flag-parsing error.
             - --pihole-server=http://192.168.1.11:80
             - --pihole-tls-skip-verify
       securityContext:
