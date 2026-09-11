@@ -44,4 +44,4 @@ spec:
   values:
     operator:
       image:
-        tag: "20260911-4603404"
+        tag: "20260911-cb1686c"
