@@ -11,7 +11,9 @@
   "prHourlyLimit": 2,
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on monday"]
+    "schedule": [
+      "before 6am on monday"
+    ]
   },
   "flux": {
     "managerFilePatterns": [
@@ -35,35 +37,75 @@
   "packageRules": [
     {
       "description": "Group Flux controller image bumps into a single PR",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["ghcr.io/fluxcd/**"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/fluxcd/**"
+      ],
       "groupName": "flux controllers"
     },
     {
       "description": "Group Kubernetes CSI sidecar image bumps",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["registry.k8s.io/sig-storage/**"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "registry.k8s.io/sig-storage/**"
+      ],
       "groupName": "csi sidecars"
     },
     {
       "description": "Group Terraform provider bumps together",
-      "matchManagers": ["terraform"],
-      "matchDepTypes": ["required_provider", "provider"],
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchDepTypes": [
+        "required_provider",
+        "provider"
+      ],
       "groupName": "terraform providers"
     },
     {
       "description": "Pin mutable image tags to a digest so we track what actually ships",
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "matchCurrentValue": "/^(latest|main|stable.*)$/",
       "pinDigests": true
     },
     {
       "description": "Auto-merge digest-only updates for already-pinned mutable tags",
-      "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["digest"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "Keep MySQL on the 8.4 LTS line. 26.x is an innovation release with a short support window, Ghost targets MySQL 8.x, and a major jump needs a dump and restore rather than an in-place upgrade of live data.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/mysql"
+      ],
+      "allowedVersions": "<9"
+    },
+    {
+      "description": "Do not pin ghost-on-kubernetes to a digest. Its :main tag is rebuilt upstream and old manifests are pruned, so a pinned digest stops resolving and the pull fails with NotFound. imagePullPolicy Always follows the tag instead.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/sredevopsorg/ghost-on-kubernetes"
+      ],
+      "pinDigests": false,
+      "enabled": false
     }
   ]
 }
