@@ -25,6 +25,10 @@ spec:
           args:
             - --log-level=info
             - --source=gateway-httproute
+            # ACE's front door is a LoadBalancer Service, not an HTTPRoute:
+            # envoy terminates its own TLS, so it cannot ride the shared
+            # HTTP gateway. Without this source its name is never published.
+            - --source=service
             - --registry=noop
             - --policy=upsert-only
             - --provider=pihole
