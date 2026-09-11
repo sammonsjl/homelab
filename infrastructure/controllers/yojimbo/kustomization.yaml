@@ -7,4 +7,3 @@ resources:
   - external-secrets
   - local-path
   - nfs-csi
-  - pxc
