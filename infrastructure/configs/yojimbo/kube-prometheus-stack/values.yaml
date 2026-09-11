@@ -53,7 +53,7 @@ grafana:
       datasources:
         - name: Ghost DB
           type: mysql
-          url: pxc-db-haproxy.pxc.svc.cluster.local:3306
+          url: mysql.mysql.svc.cluster.local:3306
           user: ghost
           uid: ghost
           secureJsonData:

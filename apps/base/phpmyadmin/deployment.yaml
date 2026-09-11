@@ -30,4 +30,4 @@ spec:
               protocol: TCP
           env:
             - name: PMA_HOST
-              value: pxc-db-haproxy.pxc.svc.cluster.local
+              value: mysql.mysql.svc.cluster.local

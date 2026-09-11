@@ -5,5 +5,5 @@ resources:
   - external-dns
   - external-secrets
   - kube-prometheus-stack
-  - pxc
+  - mysql
   - synology-csi
