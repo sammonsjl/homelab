@@ -79,7 +79,7 @@ spec:
               readOnly: false
       containers:
         - name: ghost
-          image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main
+          image: ghcr.io/sredevopsorg/ghost-on-kubernetes:main@sha256:099616060bc227e98ef95c4d63f842c6fa547ce4cb0a223b3229ab0629a9df8a
           imagePullPolicy: Always
           ports:
             - name: http
