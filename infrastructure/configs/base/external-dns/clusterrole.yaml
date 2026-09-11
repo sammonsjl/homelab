@@ -12,6 +12,18 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "watch", "list"]
+  # The service source needs more than Services: it resolves targets through
+  # endpoints and pods, and watches nodes for NodePort services. Without nodes
+  # external-dns exits with
+  #   failed to sync *v1.Node after 1m0s: context deadline exceeded
+  # and crashloops, taking every record with it -- including the HTTPRoute
+  # ones it was already publishing.
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["watch", "list"]
   - apiGroups: ["gateway.networking.k8s.io"]
     resources:
       [
