@@ -33,6 +33,7 @@ module "talos" {
       vm_id         = 105
       cpu           = 8
       ram_dedicated = 9216
+      disk_size     = 80
     }
     "yojimbo-ctrl-01" = {
       host_node     = "lud"
@@ -42,6 +43,7 @@ module "talos" {
       vm_id         = 106
       cpu           = 8
       ram_dedicated = 9216
+      disk_size     = 80
       igpu          = false
     }
     "yojimbo-ctrl-02" = {
@@ -52,6 +54,7 @@ module "talos" {
       vm_id         = 107
       cpu           = 8
       ram_dedicated = 9216
+      disk_size     = 80
     }
   }
 }
