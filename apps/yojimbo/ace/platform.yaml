@@ -26,8 +26,8 @@ spec:
     # Pinned for the same reason as every other component below.
     image: ghcr.io/sammonsjl/ace-gateway:20260910-11f2029
 
-  # All three components. galaxy-operator and eda-server-operator are
-  # installed alongside awx-operator, so each sub-CR has a reconciler.
+  # All three components, deployed by ace-operator itself. Nothing else has
+  # to be installed in the cluster for them to come up.
   controller:
     enabled: true
     replicas: 1

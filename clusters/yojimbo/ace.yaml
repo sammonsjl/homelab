@@ -1,20 +1,35 @@
 ---
-# The ACE operator is installed from the repo that owns it, so its CRD, RBAC
-# and Deployment never drift from the reconcile code they run.
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
+# The ACE operator, installed from the chart in the repo that owns it, so its
+# CRD, RBAC and Deployment never drift from the reconcile code they run.
+#
+# This used to apply the kustomize base at ./config. Both still exist and are
+# kept identical by CI; the chart is what the cluster uses because it is what
+# anyone else installing ACE would use, and it is worth exercising the same
+# path they do.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
 metadata:
   name: ace-operator
-  namespace: flux-system
+  namespace: ace-system
 spec:
-  dependsOn:
-    - name: infra-controllers
   interval: 30m
-  retryInterval: 1m
-  timeout: 5m
-  sourceRef:
-    kind: GitRepository
-    name: ace-operator
-  path: ./config
-  prune: true
-  wait: true
+  timeout: 10m
+  install:
+    createNamespace: true
+    crds: Create
+  upgrade:
+    # Helm never upgrades a CRD it installed from crds/. CreateReplace makes
+    # Flux apply schema changes that the chart alone would silently skip.
+    crds: CreateReplace
+  chart:
+    spec:
+      chart: ./charts/ace
+      sourceRef:
+        kind: GitRepository
+        name: ace-operator
+        namespace: flux-system
+      interval: 10m
+  values:
+    operator:
+      image:
+        tag: "20260911-179d8e3"
