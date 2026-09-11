@@ -53,14 +53,6 @@ grafana:
     limits:
       memory: 768Mi
 
-  sidecar:
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-      limits:
-        memory: 128Mi
-
   grafana.ini:
     date_formats:
       default_week_start: monday
@@ -68,6 +60,15 @@ grafana:
   envFromSecret: db-passwords
 
   sidecar:
+    # Applies to both config sidecars. They are tiny -- a few MiB each -- but
+    # without this they are the only containers in the namespace still running
+    # BestEffort, and so the first the kubelet evicts under pressure.
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
     datasources:
       enabled: true
       label: grafana_datasource
