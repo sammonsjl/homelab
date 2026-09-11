@@ -14,8 +14,15 @@ metadata:
   namespace: ace
 spec:
   gateway:
-    external_url: https://ace.sammons.io
+    external_url: https://ace.neokube.net
     replicas: 1
+    # envoy terminates TLS on 443 itself and its listener comes from the
+    # gateway over xDS, so it takes its own address rather than sitting behind
+    # the shared HTTP gateway -- routing to nginx instead would serve the
+    # console and 404 every component API.
+    service_type: LoadBalancer
+    service_annotations:
+      external-dns.alpha.kubernetes.io/hostname: ace.neokube.net
     # Pinned for the same reason as every other component below.
     image: ghcr.io/sammonsjl/ace-gateway:20260910-11f2029
 
