@@ -27,7 +27,40 @@ prometheus:
     ruleSelectorNilUsesHelmValues: false
     serviceMonitorSelectorNilUsesHelmValues: false
 
+    # Sized from what it actually uses: about 30m CPU and 500Mi at this
+    # cardinality and retention. The request is roughly double that, because
+    # this is the one workload here that grows on its own as series accumulate.
+    #
+    # The memory limit is deliberately generous rather than tight. Prometheus
+    # holds recent samples in memory, so being OOMKilled costs the WAL and
+    # anything not yet compacted -- a limit that only just fits is worse than
+    # no limit. No CPU limit: throttling a scraper makes it miss scrape
+    # deadlines rather than simply run slower.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
 grafana:
+  # About 12m CPU and 395Mi across its three containers today, most of that
+  # Grafana itself rather than the two config sidecars.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 384Mi
+    limits:
+      memory: 768Mi
+
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
   grafana.ini:
     date_formats:
       default_week_start: monday
@@ -98,3 +131,37 @@ grafana:
       parentRefs:
         - name: gateway
           namespace: kube-system
+
+# The rest of the stack: small, steady, and previously requesting nothing at
+# all, which left the scheduler unable to account for any of it.
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
