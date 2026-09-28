@@ -27,7 +27,7 @@ spec:
       # silently never be created.
       external-dns.kubernetes.io/hostname: ace.neokube.net
     # Pinned for the same reason as every other component below.
-    image: ghcr.io/sammonsjl/ace-gateway:20260910-11f2029
+    image: ghcr.io/sammonsjl/ace-gateway:20260928-r1
 
   # All three components, deployed by ace-operator itself. Nothing else has
   # to be installed in the cluster for them to come up.
@@ -37,20 +37,20 @@ spec:
     # An immutable tag, not :latest. A floating tag plus a node that has
     # already cached it means a rebuilt image never reaches the pods, and the
     # old one keeps failing in a way that looks like the fix did not work.
-    image: ghcr.io/sammonsjl/ace-controller:20260910-b8dc9e6
+    image: ghcr.io/sammonsjl/ace-controller:20260928-r1
   hub:
     enabled: true
     replicas: 1
-    image: ghcr.io/sammonsjl/ace-hub:20260910-c4b9753
+    image: ghcr.io/sammonsjl/ace-hub:20260928-r1
   eda:
     enabled: true
     replicas: 1
-    image: ghcr.io/sammonsjl/ace-eda:20260910-11f2029
+    image: ghcr.io/sammonsjl/ace-eda:20260928-r1
 
   # Immutable tags for the same reason as the controller: a node that has
   # already cached :latest will not pick up a rebuild, and the failure shows
   # up as the old bug reappearing.
-  ee_image: ghcr.io/sammonsjl/ace-ee-minimal:20260910-dd9f4a5
+  ee_image: ghcr.io/sammonsjl/ace-ee-minimal:20260928-r1
 
   postgres:
     managed: true
