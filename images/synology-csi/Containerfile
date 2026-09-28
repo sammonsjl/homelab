@@ -12,22 +12,56 @@
 # the network namespace -- shared with the host through hostNetwork, and not
 # part of the sandbox. Only the userspace client moves; the daemon, the kernel
 # initiator and the sessions stay on the host. It works the same with the
-# sandbox on or off, so odin (Talos 1.13) and yojimbo (1.14) share one config.
+# sandbox on or off.
+
+# iscsiadm MUST be the exact open-iscsi release the node's iscsid is. The IPC
+# is raw C structs with no version check: 2.1.13 added a field to the session
+# record, so a 2.1.12 iscsiadm sends a request 4 bytes short, and iscsid --
+# single-threaded, blocking read -- waits forever for the rest. That wedges
+# iscsid for every client on the node, not just this one. Alpine's package
+# (2.1.12 in 3.24) cannot be trusted to line up, so it is built here from the
+# tag Talos's iscsi-tools pins:
+#   siderolabs/extensions  storage/iscsi-tools/vars.yaml  OPEN_ISCSI_VERSION
+# Bump these two together with Talos, and check that file when you do. Every
+# cluster running this image has to be on a Talos with this iscsid: 1.14.1 ships
+# 2.1.13, 1.14.0 shipped 2.1.12, 1.13.x 2.1.11.
+ARG OPEN_ISCSI_VERSION=2.1.13
+ARG OPEN_ISCSI_SHA256=1c3a8ad7d86e57d247a08c013f5055ef695b3a07ed760d1aea7d90b9f9011602
+
+# Same Alpine as the upstream image, so the libraries match at runtime. Talos
+# builds against musl too.
+FROM docker.io/library/alpine:3.24 AS open-iscsi
+ARG OPEN_ISCSI_VERSION
+ARG OPEN_ISCSI_SHA256
+# bash and perl only run the man-page generators meson insists on.
+RUN apk add --no-cache build-base meson kmod-dev linux-headers openssl-dev util-linux-dev bash perl
+WORKDIR /src
+RUN wget -qO open-iscsi.tar.gz \
+      "https://github.com/open-iscsi/open-iscsi/archive/refs/tags/${OPEN_ISCSI_VERSION}.tar.gz" \
+ && echo "${OPEN_ISCSI_SHA256}  open-iscsi.tar.gz" | sha256sum -c - \
+ && tar -xzf open-iscsi.tar.gz --strip-components=1
+# The same options Talos's iscsi-tools builds with, minus its install paths.
+# musl has no GLOB_ONLYDIR; it is only a hint to glob(), so 0 is safe (Alpine
+# does the same).
+RUN CFLAGS="-DGLOB_ONLYDIR=0" meson setup build \
+      --prefix=/usr --libdir=lib -Dwerror=false \
+      -Dno_systemd=true -Disns=disabled -Dhomedir=/etc/iscsi \
+ && meson compile -C build \
+ && DESTDIR=/out meson install -C build
+
 FROM docker.io/synology/synology-csi:v1.3.1
-
-# Alpine 3.24 ships open-iscsi 2.1.12; Talos 1.14.1's iscsi-tools runs iscsid
-# 2.1.13. Same 2.1 series and IPC protocol.
-RUN apk add --no-cache open-iscsi
-
-# Installing the package generates a random InitiatorName and writes it here, so
-# every node running this image would carry the same one. It is never used --
-# iscsiadm does not read this file; iscsid does, and iscsid is the host's, with
-# Talos's per-node name (open-iscsi usr/initiator.c: a login request without a
-# name gets the daemon's). Removed so nobody mistakes it for the identity in use,
-# and so starting an iscsid in this container fails loudly instead of silently
-# presenting a shared name to the NAS.
-RUN rm -f /etc/iscsi/initiatorname.iscsi
+ARG OPEN_ISCSI_VERSION
+RUN apk add --no-cache kmod-libs libmount libcrypto3
+COPY --from=open-iscsi /out/usr/sbin/iscsiadm /usr/sbin/iscsiadm
+COPY --from=open-iscsi /out/usr/lib/libopeniscsiusr.so* /usr/lib/
+COPY --from=open-iscsi /out/etc/iscsi/iscsid.conf /etc/iscsi/iscsid.conf
+# No initiatorname.iscsi, deliberately. iscsiadm never reads it -- iscsid does,
+# and iscsid is the host's, with Talos's per-node name (open-iscsi
+# usr/initiator.c: a login request without a name gets the daemon's). A file
+# here would only mislead, and if something started an iscsid in this
+# container it would fail loudly instead of presenting a shared name to the NAS.
 
 LABEL org.opencontainers.image.source="https://github.com/sammonsjl/homelab" \
-      org.opencontainers.image.description="synology-csi v1.3.1 with its own iscsiadm, for Talos workload isolation" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.description="synology-csi v1.3.1 with open-iscsi ${OPEN_ISCSI_VERSION} iscsiadm, for Talos workload isolation" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      io.open-iscsi.version="${OPEN_ISCSI_VERSION}"

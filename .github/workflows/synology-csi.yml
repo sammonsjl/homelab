@@ -50,9 +50,15 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
-      # Fail the run if the image does not carry the one thing it exists for.
-      - name: Check iscsiadm is in the image
+      # Fail the run if the image does not carry the one thing it exists for --
+      # and at exactly the open-iscsi release the Containerfile pins, since a
+      # mismatch with the node's iscsid hangs iscsid rather than erroring.
+      - name: Check iscsiadm is in the image, at the pinned version
         run: |
           ref="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/synology-csi-talos:v1.3.1-${GITHUB_SHA::7}"
+          want=$(sed -n 's/^ARG OPEN_ISCSI_VERSION=//p' images/synology-csi/Containerfile)
+          got=$(docker run --rm --entrypoint iscsiadm "$ref" --version)
+          echo "$got"
+          [ "$got" = "iscsiadm version ${want}" ] || { echo "::error::expected iscsiadm ${want}, got: ${got}"; exit 1; }
           docker run --rm --entrypoint sh "$ref" -c \
-            'iscsiadm --version && test ! -e /etc/iscsi/initiatorname.iscsi && echo "no baked initiator name"'
+            'test ! -e /etc/iscsi/initiatorname.iscsi && echo "no baked initiator name"'
