@@ -25,13 +25,8 @@ Below is my current list of Kubernetes Clusters and their functions:
     </tr>
     <tr>
         <td>2</td>
-    <td>Odin</td>
-        <td>This cluster represents the infrastructure that mirrors the PRD cluster.  It contains custom CNI and CSIs similar to PRD.  All applications deployed to PRD are replicated here . Can be torn down and spun up within minutes using Terraform.</td>
-    </tr>
-    <tr>
-        <td>3</td>
     <td>Yojimbo</td>
-        <td>PRD cluster that matches UAT cluster Odin.  Treated as a production system with the goal to keeping it running as much as possible.</td>
+        <td>PRD cluster on Talos Linux, built with Terraform on Proxmox.  Treated as a production system with the goal to keeping it running as much as possible.</td>
     </tr>
 </table>
 
@@ -134,11 +129,6 @@ End User Applications
         <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/homepage.png"></td>
         <td><a href="https://github.com/gethomepage/homepage">Homepage</a></td>
         <td>My customized portal to my homelab & internet</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/minecraft.png"></td>
-        <td><a href="https://docker-minecraft-server.readthedocs.io/en/latest/misc/deployment/">Minecraft Server</a></td>
-        <td>Minecraft Server deployed via Helm Chart</td>
     </tr>
 </table>
 ### Infrastructure
