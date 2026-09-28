@@ -19,11 +19,6 @@ metadata:
   name: infra-configs
   namespace: flux-system
 spec:
-  # HELD for the 2026-09 rebuild -- remove once the old Ghost/MySQL volumes are
-  # re-bound. infra-configs creates mysql/data-mysql-0 from a volumeClaimTemplate;
-  # let it reconcile first and it provisions an EMPTY volume over the blog's
-  # database, which is still on the NAS. See the rebuild steps in the commit.
-  suspend: true
   dependsOn:
     - name: infra-controllers
   interval: 1h

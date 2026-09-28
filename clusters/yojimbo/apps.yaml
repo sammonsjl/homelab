@@ -5,11 +5,6 @@ metadata:
   name: app
   namespace: flux-system
 spec:
-  # HELD for the 2026-09 rebuild -- remove once the old Ghost/MySQL volumes are
-  # re-bound. app creates ghost/ghost-content;
-  # let it reconcile first and it provisions an EMPTY volume over the blog's
-  # database, which is still on the NAS. See the rebuild steps in the commit.
-  suspend: true
   dependsOn:
     - name: infra-configs
   interval: 10m0s

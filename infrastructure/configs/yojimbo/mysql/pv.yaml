@@ -1,0 +1,34 @@
+# The blog's database, pinned to the LUN it already lives on.
+#
+# mysql/data-mysql-0 comes from the StatefulSet's volumeClaimTemplate. Without
+# this, a fresh cluster provisions an EMPTY volume for it; with it, the claim
+# binds here instead (a PV whose claimRef names the claim is matched before
+# anything is provisioned). reclaimPolicy Retain, so a rebuild never takes the
+# LUN with it -- which is how it survived to be re-bound.
+#
+# LUN k8s-csi-pvc-5081840b-01e0-4989-b216-a968c54a3db1 on darktower, 8 GiB,
+# created 2026-09-11 17:44 UTC and last written 2026-09-13 22:07 at the
+# teardown. There is a second, older mysql/data-mysql-0 LUN (k8s-csi-pvc-
+# b7a82b9a-..., last written 2026-09-11 17:20) from an earlier build; it is not
+# this one.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: yojimbo-mysql-data
+spec:
+  capacity:
+    storage: 8Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: synology-iscsi
+  claimRef:
+    namespace: mysql
+    name: data-mysql-0
+  csi:
+    driver: csi.san.synology.com
+    # The LUN's UUID, as the Synology driver uses it for the volume ID.
+    volumeHandle: c158c0b5-d9f2-497d-b574-2cf8c5f1600f
+    fsType: ext4
+    volumeAttributes:
+      dsm: "192.168.1.4"
+      protocol: iscsi

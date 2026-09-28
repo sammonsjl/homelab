@@ -1,0 +1,30 @@
+# Ghost's content directory, pinned to the one it already has on the NAS, so
+# a fresh cluster binds ghost/ghost-content here instead of provisioning an
+# empty directory. reclaimPolicy Retain, same as the class. See the MySQL PV in
+# infrastructure/configs/yojimbo/mysql/pv.yaml -- the two belong together.
+#
+# pvc-7bfbc367-... was created 2026-09-11 17:38 UTC alongside that database,
+# and is the last one the blog ran on. The other ghost-shaped directories in
+# the share are from earlier builds.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: yojimbo-ghost-content
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-csi
+  claimRef:
+    namespace: ghost
+    name: ghost-content
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  csi:
+    driver: nfs.csi.k8s.io
+    volumeHandle: 192.168.1.4#volume1/k8s-nfs-yojimbo#pvc-7bfbc367-0153-49fd-9536-48b6f66f1f0b##
+    volumeAttributes:
+      server: 192.168.1.4
+      share: /volume1/k8s-nfs-yojimbo/pvc-7bfbc367-0153-49fd-9536-48b6f66f1f0b
