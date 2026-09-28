@@ -24,14 +24,47 @@ data "talos_machine_configuration" "this" {
       cluster_name   = var.cluster.proxmox_cluster
       cilium_values  = var.cilium.values
       cilium_install = var.cilium.install
-    })
+    }),
+    local.install_image_patch[each.key],
     ] : [
     templatefile("${path.module}/machine-config/worker.yaml.tftpl", {
       hostname     = each.key
       node_name    = each.value.host_node
       cluster_name = var.cluster.proxmox_cluster
-    })
+    }),
+    local.install_image_patch[each.key],
   ]
+}
+
+# The installer a later `talosctl upgrade` falls back to. Left unset, Talos
+# writes the plain installer for the provider's SDK version -- no extensions --
+# so an upgrade without --image would quietly drop iscsi-tools and with it
+# every iSCSI volume. Same schematic and version the node was built from.
+# Talos 1.14 keeps it in the UnattendedInstallConfig document and rejects
+# machine.install.image alongside it. A patch replaces that document whole, so
+# the disk selector Talos generates has to be restated with it.
+locals {
+  install_image_patch = {
+    for k, v in var.nodes : k => yamlencode({
+      apiVersion = "v1alpha1"
+      kind       = "UnattendedInstallConfig"
+      installer = {
+        # <platform>-installer: plain "installer" is the metal one, and an
+        # upgrade with it would move a nocloud VM off its platform.
+        image = format("%s/%s-installer/%s:%s",
+          replace(var.image.factory_url, "/^https?:\\/\\//", ""),
+          var.image.platform,
+          v.update == true ? local.update_schematic_id : local.schematic_id,
+          v.update == true ? local.update_version : local.version,
+        )
+      }
+      provisioning = {
+        diskSelector = {
+          match = "disk.dev_path == \"/dev/sda\""
+        }
+      }
+    })
+  }
 }
 
 resource "talos_machine_configuration_apply" "this" {
