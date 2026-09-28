@@ -13,11 +13,11 @@ module "talos" {
   # iscsiadm (images/synology-csi) instead of nsenter-ing into the host.
   image = {
     version   = "v1.14.1"
-    schematic = file("${path.module}/../modules/talos/image/schematic.yaml")
+    schematic = file("${path.module}/../modules/talos-cluster/image/schematic.yaml")
   }
 
   cilium = {
-    install = file("${path.module}/../modules/talos/inline-manifests/cilium-install.yaml")
+    install = file("${path.module}/../modules/talos-cluster/inline-manifests/cilium-install.yaml")
     values  = file("${path.module}/../../infrastructure/controllers/base/cilium/values.yaml")
   }
 

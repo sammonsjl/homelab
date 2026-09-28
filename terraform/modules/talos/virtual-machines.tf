@@ -41,7 +41,7 @@ resource "proxmox_virtual_environment_vm" "this" {
     ssd          = true
     file_format  = "raw"
     size         = each.value.disk_size
-    import_from  = proxmox_virtual_environment_download_file.this["${each.value.host_node}_${each.value.update == true ? local.update_image_id : local.image_id}"].id
+    import_from  = proxmox_virtual_environment_download_file.this["${each.value.host_node}_${module.cluster.images[each.key].id}"].id
   }
 
   boot_order = ["scsi0"]

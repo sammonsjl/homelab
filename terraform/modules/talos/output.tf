@@ -1,14 +1,14 @@
 # tofu/talos/output.tf
 output "client_configuration" {
-  value     = data.talos_client_configuration.this
+  value     = module.cluster.client_configuration
   sensitive = true
 }
 
 output "kube_config" {
-  value     = data.talos_cluster_kubeconfig.this
+  value     = module.cluster.kube_config
   sensitive = true
 }
 
 output "machine_config" {
-  value = data.talos_machine_configuration.this
+  value = module.cluster.machine_config
 }

@@ -1,4 +1,7 @@
-# tofu/talos/talos-config.tf
+# The Talos side of a cluster: secrets, machine configuration, apply,
+# bootstrap, health and kubeconfig. Hypervisor-agnostic -- ../talos (Proxmox)
+# and ../talos-libvirt (local KVM) build the VMs and call this with them, so
+# yojimbo and bahamut get the same machine config from the same templates.
 resource "talos_machine_secrets" "this" {
   talos_version = var.cluster.talos_version
 }
@@ -20,8 +23,8 @@ data "talos_machine_configuration" "this" {
   config_patches = each.value.machine_type == "controlplane" ? [
     templatefile("${path.module}/machine-config/control-plane.yaml.tftpl", {
       hostname       = each.key
-      node_name      = each.value.host_node
-      cluster_name   = var.cluster.proxmox_cluster
+      node_name      = each.value.zone
+      cluster_name   = var.cluster.region
       cilium_values  = var.cilium.values
       cilium_install = var.cilium.install
     }),
@@ -29,8 +32,8 @@ data "talos_machine_configuration" "this" {
     ] : [
     templatefile("${path.module}/machine-config/worker.yaml.tftpl", {
       hostname     = each.key
-      node_name    = each.value.host_node
-      cluster_name = var.cluster.proxmox_cluster
+      node_name    = each.value.zone
+      cluster_name = var.cluster.region
     }),
     local.install_image_patch[each.key],
   ]
@@ -60,22 +63,30 @@ locals {
       }
       provisioning = {
         diskSelector = {
-          match = "disk.dev_path == \"/dev/sda\""
+          match = "disk.dev_path == \"${v.install_disk}\""
         }
       }
     })
   }
 }
 
+# One per node, holding the ID of the VM the caller built for it.
+# replace_triggered_by can only name a resource, not a variable, so this is
+# what carries "the VM was replaced" into this module.
+resource "terraform_data" "node" {
+  for_each = var.nodes
+  input    = var.node_instance_ids[each.key]
+}
+
 resource "talos_machine_configuration_apply" "this" {
-  depends_on                  = [proxmox_virtual_environment_vm.this]
+  depends_on                  = [terraform_data.node]
   for_each                    = var.nodes
   node                        = each.value.ip
   client_configuration        = talos_machine_secrets.this.client_configuration
   machine_configuration_input = data.talos_machine_configuration.this[each.key].machine_configuration
   lifecycle {
     # re-run config apply if vm changes
-    replace_triggered_by = [proxmox_virtual_environment_vm.this[each.key]]
+    replace_triggered_by = [terraform_data.node[each.key]]
   }
 }
 
