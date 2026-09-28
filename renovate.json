@@ -75,7 +75,7 @@
       "pinDigests": true
     },
     {
-      "description": "Auto-merge digest-only updates for already-pinned mutable tags",
+      "description": "Auto-merge digest-only updates for already-pinned mutable tags. Renovate merges these itself: the repo has no status checks, so ignoreTests is needed (Renovate otherwise waits for checks that never run), and GitHub's platform auto-merge is off in the repo settings.",
       "matchDatasources": [
         "docker"
       ],
@@ -84,7 +84,8 @@
       ],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": true
+      "platformAutomerge": false,
+      "ignoreTests": true
     },
     {
       "description": "Keep MySQL on the 8.4 LTS line. 26.x is an innovation release with a short support window, Ghost targets MySQL 8.x, and a major jump needs a dump and restore rather than an in-place upgrade of live data.",
