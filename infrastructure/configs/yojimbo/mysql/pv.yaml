@@ -8,9 +8,7 @@
 #
 # LUN k8s-csi-pvc-5081840b-01e0-4989-b216-a968c54a3db1 on darktower, 8 GiB,
 # created 2026-09-11 17:44 UTC and last written 2026-09-13 22:07 at the
-# teardown. There is a second, older mysql/data-mysql-0 LUN (k8s-csi-pvc-
-# b7a82b9a-..., last written 2026-09-11 17:20) from an earlier build; it is not
-# this one.
+# teardown.
 apiVersion: v1
 kind: PersistentVolume
 metadata:

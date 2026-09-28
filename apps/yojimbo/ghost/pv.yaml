@@ -3,9 +3,7 @@
 # empty directory. reclaimPolicy Retain, same as the class. See the MySQL PV in
 # infrastructure/configs/yojimbo/mysql/pv.yaml -- the two belong together.
 #
-# pvc-7bfbc367-... was created 2026-09-11 17:38 UTC alongside that database,
-# and is the last one the blog ran on. The other ghost-shaped directories in
-# the share are from earlier builds.
+# pvc-7bfbc367-... was created 2026-09-11 17:38 UTC alongside that database.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
