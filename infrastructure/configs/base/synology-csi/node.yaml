@@ -57,9 +57,12 @@ spec:
         app: synology-csi-node
     spec:
       serviceAccount: csi-node-sa
+      # iscsiadm in this pod reaches the host's iscsid over iscsid's abstract
+      # unix socket, which is scoped to the network namespace. hostNetwork is
+      # what makes that the host's. No hostPID: under Talos workload isolation
+      # the pod's PID 1 is the sandbox, so there is no host process to reach
+      # through it -- which is why the old nsenter wrapper is gone.
       hostNetwork: true
-      # for nsenter into the host mount namespace (iscsiadm wrapper)
-      hostPID: true
       containers:
         - name: csi-driver-registrar
           securityContext:
@@ -88,9 +91,11 @@ spec:
           securityContext:
             privileged: true
           imagePullPolicy: IfNotPresent
-          image: synology/synology-csi:v1.3.1
+          # Upstream v1.3.1 plus its own iscsiadm (images/synology-csi).
+          image: ghcr.io/sammonsjl/synology-csi-talos:v1.3.1-61c3c8d
           args:
             - --nodeid=$(KUBE_NODE_NAME)
+            - --iscsiadm-path=/usr/sbin/iscsiadm
             - --endpoint=$(CSI_ENDPOINT)
             - --client-info
             - /etc/synology/client-info.yml
@@ -115,9 +120,14 @@ spec:
               mountPath: /host
             - name: device-dir
               mountPath: /dev
-            - name: iscsiadm-wrapper
-              mountPath: /usr/local/sbin/iscsiadm
-              subPath: iscsiadm
+            # iscsiadm's node records. Logout finds sessions through them
+            # (iscsiadm -m node --targetname <iqn> --logout), so they must
+            # outlive the pod: in the container alone, a restart would leave
+            # every attached volume impossible to release.
+            - name: iscsi-nodes
+              mountPath: /etc/iscsi/nodes
+            - name: iscsi-send-targets
+              mountPath: /etc/iscsi/send_targets
       volumes:
         - name: kubelet-dir
           hostPath:
@@ -142,7 +152,11 @@ spec:
           hostPath:
             path: /dev
             type: Directory
-        - name: iscsiadm-wrapper
-          configMap:
-            name: iscsiadm-wrapper
-            defaultMode: 0755
+        - name: iscsi-nodes
+          hostPath:
+            path: /var/lib/synology-csi/iscsi/nodes
+            type: DirectoryOrCreate
+        - name: iscsi-send-targets
+          hostPath:
+            path: /var/lib/synology-csi/iscsi/send_targets
+            type: DirectoryOrCreate

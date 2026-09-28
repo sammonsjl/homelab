@@ -6,8 +6,13 @@ module "talos" {
     proxmox = proxmox
   }
 
+  # Talos 1.14 runs CRI, the kubelet and every pod inside a sandbox PID + mount
+  # namespace (workload isolation), on by default for a new cluster: 1.14.1's
+  # generated config carries SecurityProfileConfig workloadIsolation: true.
+  # Synology iSCSI works under it because the CSI node plugin carries its own
+  # iscsiadm (images/synology-csi) instead of nsenter-ing into the host.
   image = {
-    version   = "v1.13.6"
+    version   = "v1.14.1"
     schematic = file("${path.module}/../modules/talos/image/schematic.yaml")
   }
 
@@ -20,7 +25,7 @@ module "talos" {
     name            = "yojimbo"
     endpoint        = "192.168.1.20"
     gateway         = "192.168.1.1"
-    talos_version   = "v1.13.6"
+    talos_version   = "v1.14.1"
     proxmox_cluster = "homelab"
   }
 
