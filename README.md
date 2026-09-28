@@ -35,55 +35,73 @@ Below is my current list of Kubernetes Clusters and their functions:
     </tr>
 </table>
 
-## ACE on Kubernetes: Control Plane & Execution Plane
+## ACE on Kubernetes
 
-[ACE](https://github.com/sammonsjl/ace-containerized-installer) — my open-source
-Ansible Automation Platform clone — splits cleanly into two planes. The
-**control plane** (UI, API, scheduler) runs as rootless podman containers on a
-dedicated VM and holds no automation workload itself. The **execution plane**
-is the Yojimbo Kubernetes cluster: every job runs as an ephemeral pod inside a
-locked-down `ace-jobs` namespace and disappears when it finishes.
+[ACE](https://github.com/sammonsjl/ace-operator) — my open-source automation
+platform, built from upstream Ansible source — runs entirely on Yojimbo.
+[ace-operator](https://github.com/sammonsjl/ace-operator) deploys the whole
+platform from a single `AutomationPlatform` resource, and every image it runs is
+built by [ace-images](https://github.com/sammonsjl/ace-images) and published to
+GHCR.
 
 ```mermaid
 flowchart LR
-    user(["👤 Operator<br/>https://192.168.1.40"])
+    user(["👤 User<br/>https://ace.neokube.net"])
+    git[("GitHub<br/>homelab · ace-operator")]
+    ghcr[("GHCR<br/>ace-images")]
 
-    subgraph cp["🎛️ CONTROL PLANE · ACE VM · Rocky 9 · podman"]
+    subgraph yj["⚙️ Yojimbo · Talos Kubernetes"]
         direction TB
-        envoy["envoy :443<br/>platform UI + API"]
-        gateway["gateway<br/>auth · service mesh"]
-        controller["controller · AWX<br/>projects · templates · scheduler"]
-        receptor["receptor<br/>work dispatcher"]
-        envoy --> gateway --> controller --> receptor
-    end
-
-    subgraph ep["⚙️ EXECUTION PLANE · Yojimbo · Talos Kubernetes"]
-        direction TB
-        api["kube-apiserver<br/>192.168.1.20:6443"]
-        subgraph ns["namespace: ace-jobs"]
-            sa["ServiceAccount ace-jobs<br/>Role: pods · pods/log<br/>pods/attach · pods/exec"]
-            pod["ephemeral job pod<br/>awx-ee · ansible-runner"]
+        flux["Flux<br/>HelmRelease"]
+        subgraph sys["namespace: ace-system"]
+            op["ace-operator"]
         end
-        other["every other namespace"]
-        api --> ns
+        subgraph ns["namespace: ace"]
+            direction TB
+            envoy["envoy :443<br/>LoadBalancer · Cilium"]
+            gateway["gateway<br/>auth · platform UI"]
+            comps["controller · hub · EDA"]
+            data["postgres · redis"]
+            job["ephemeral job pods<br/>ace-ee-minimal"]
+            envoy --> gateway --> comps --> data
+            comps == "container group<br/>namespace-scoped Role" ==> job
+        end
+        flux --> op
+        op -- "reconciles<br/>AutomationPlatform" --> ns
     end
 
+    git --> flux
+    ghcr -. images .-> ns
     user --> envoy
-    receptor == "① submit work<br/>kubernetes-runtime-auth<br/>bearer token + CA" ==> api
-    api == "② create pod" ==> pod
-    pod == "③ stream stdout<br/>④ auto-delete on finish" ==> receptor
-    receptor -. "🚫 Forbidden<br/>namespace-scoped RBAC" .-> other
 ```
 
-The contract between the planes is deliberately small: a ServiceAccount, a
-namespace-scoped Role (create/watch/delete pods plus logs, attach and exec) and
-a long-lived token — all declared in
-[`infrastructure/configs/yojimbo/ace-jobs/`](infrastructure/configs/yojimbo/ace-jobs/)
-and reconciled by Flux like everything else. When a job launches, the receptor
-submits `kubernetes-runtime-auth` work to the cluster API using that token,
-the pod runs the playbook, output streams back to the controller, and the pod
-is deleted. The token can run jobs in `ace-jobs` and nothing else — anything
-outside the namespace is Forbidden by RBAC.
+**How it is deployed.** Flux installs the operator from the Helm chart in the
+ace-operator repo itself ([`clusters/yojimbo/ace.yaml`](clusters/yojimbo/ace.yaml)),
+so its CRD, RBAC and reconcile code never drift apart. The platform is one
+resource, [`apps/yojimbo/ace/platform.yaml`](apps/yojimbo/ace/platform.yaml):
+the gateway, controller, hub and EDA, each pinned to an immutable ace-images
+tag, plus operator-managed PostgreSQL and Redis. The operator brings the
+gateway up first — each component's service secret is issued from inside the
+gateway pod — then deploys the components itself; no other operators need to
+be installed. envoy takes its own LoadBalancer address, which External DNS
+publishes as `ace.neokube.net`.
+
+**How jobs run.** The platform and its jobs share the cluster. The controller
+launches each job as an ephemeral pod in the `ace` namespace through a
+container group, running the `ace-ee-minimal` execution environment, and the
+pod is removed when the job finishes. The controller's ServiceAccount is bound
+to a Role scoped to that namespace — pods, their logs and attach, and the
+secrets it creates for them — so it cannot reach anything else in the cluster.
+
+**How it is watched.** A ServiceMonitor scrapes the controller's metrics
+through the gateway (the component rejects direct calls), and an *ACE Platform*
+Grafana dashboard ships beside it in [`apps/yojimbo/ace/`](apps/yojimbo/ace/).
+
+ACE also runs without Kubernetes:
+[ace-containerized-installer](https://github.com/sammonsjl/ace-containerized-installer)
+installs it as rootless podman containers on one VM, and
+[ace-the-hard-way](https://github.com/sammonsjl/ace-the-hard-way) builds it by
+hand from source across six.
 
 ## :computer: Hardware
 
@@ -101,6 +119,11 @@ End User Applications
         <th>Logo</th>
         <th>Name</th>
         <th>Description</th>
+    </tr>
+    <tr>
+        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/ansible.svg"></td>
+        <td><a href="https://github.com/sammonsjl/ace-operator">ACE</a></td>
+        <td>Open-source automation platform built from upstream Ansible source, deployed by ace-operator</td>
     </tr>
     <tr>
         <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/ghost.png"></td>
