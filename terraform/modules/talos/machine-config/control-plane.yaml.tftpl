@@ -1,21 +1,14 @@
 # tofu/talos/machine-config/control-plane.yaml.tftpl
-machine:
-  kubelet:
-    extraArgs:
-      rotate-server-certificates: true
-  # hostname comes from the Proxmox cloud-init drive (VM name); Talos 1.13+
-  # rejects setting it here as well
-  nodeLabels:
-    topology.kubernetes.io/region: ${cluster_name}
-    topology.kubernetes.io/zone: ${node_name}
-
+#
+# Talos 1.14 moved Kubernetes settings out of the v1alpha1 config into separate
+# documents, generates those documents by default, and REJECTS a config that
+# also sets the old fields ("... is already set in v1alpha1 config"). Kubelet,
+# node labels/taints, kube-proxy and the CNI are therefore the documents after
+# this one. The manifests below are deprecated in v1alpha1 but not in conflict.
+#
+# hostname comes from the Proxmox cloud-init drive (VM name); Talos 1.13+
+# rejects setting it here as well.
 cluster:
-  allowSchedulingOnControlPlanes: true
-  network:
-    cni:
-      name: none
-  proxy:
-    disabled: true
   extraManifests:
   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.4.1/config/crd/standard/gateway.networking.k8s.io_gatewayclasses.yaml
   - https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/v1.4.1/config/crd/standard/gateway.networking.k8s.io_gateways.yaml
@@ -39,3 +32,38 @@ cluster:
   - name: cilium-bootstrap
     contents: |
       ${indent(6, cilium_install)}
+---
+apiVersion: v1alpha1
+kind: KubeletConfig
+config:
+  # was machine.kubelet.extraArgs.rotate-server-certificates -- the same setting.
+  # kubelet-serving-cert-approver (extraManifests) approves the CSRs.
+  serverTLSBootstrap: true
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  topology.kubernetes.io/region: ${cluster_name}
+  topology.kubernetes.io/zone: ${node_name}
+  # was cluster.allowSchedulingOnControlPlanes: true, which also skipped this
+  # label. It would sit on every node here (all are control planes), and every
+  # LoadBalancer IP is announced by CiliumL2AnnouncementPolicy.
+  node.kubernetes.io/exclude-from-external-load-balancers:
+    $patch: delete
+taints:
+  # was cluster.allowSchedulingOnControlPlanes: true. Only $patch: delete removes
+  # a default key -- null or {} merge and leave NoSchedule in place (tested
+  # against talosctl v1.14.1).
+  node-role.kubernetes.io/control-plane:
+    $patch: delete
+---
+# was cluster.proxy.disabled: true -- Cilium replaces kube-proxy.
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
+---
+# was cluster.network.cni.name: none -- Cilium is installed from inlineManifests.
+# 1.14 selects Flannel by the presence of this document, so delete it.
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete

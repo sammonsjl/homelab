@@ -1,10 +1,14 @@
 # tofu/talos/machine-config/worker.yaml.tftpl
-machine:
-  kubelet:
-    extraArgs:
-      rotate-server-certificates: true
-  # hostname comes from the Proxmox cloud-init drive (VM name); Talos 1.13+
-  # rejects setting it here as well
-  nodeLabels:
-    topology.kubernetes.io/region: ${cluster_name}
-    topology.kubernetes.io/zone: ${node_name}
+#
+# Talos 1.14 format: kubelet and node settings are their own documents (see
+# control-plane.yaml.tftpl). hostname comes from the Proxmox cloud-init drive.
+apiVersion: v1alpha1
+kind: KubeletConfig
+config:
+  serverTLSBootstrap: true
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  topology.kubernetes.io/region: ${cluster_name}
+  topology.kubernetes.io/zone: ${node_name}
