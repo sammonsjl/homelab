@@ -7,3 +7,8 @@ patches:
   - path: httproute.yaml
     target:
       kind: HTTPRoute
+  - path: gateway.yaml
+    target:
+      kind: Gateway
+      name: gateway
+      namespace: kube-system

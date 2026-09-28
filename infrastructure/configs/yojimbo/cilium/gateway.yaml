@@ -1,0 +1,14 @@
+# Pin the shared HTTP gateway to the first address in the pool. Left to LB
+# IPAM, whichever LoadBalancer asks first gets .31 -- after the 2026-09 rebuild
+# the gateway came up late and ACE's took it -- and the Pi-hole records
+# external-dns wrote earlier keep pointing at the old address. ACE's gateway is
+# pinned to .32 in apps/yojimbo/ace/platform.yaml.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: gateway
+  namespace: kube-system
+spec:
+  addresses:
+    - type: IPAddress
+      value: 192.168.1.31

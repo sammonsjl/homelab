@@ -26,6 +26,9 @@ spec:
       # 0.22 stopped reading that with no fallback, so the record would
       # silently never be created.
       external-dns.kubernetes.io/hostname: ace.neokube.net
+      # A fixed address, not first-come from the pool: the shared HTTP gateway
+      # is pinned to .31, and DNS for both is only as stable as these are.
+      lbipam.cilium.io/ips: 192.168.1.32
     # Pinned for the same reason as every other component below.
     image: ghcr.io/sammonsjl/ace-gateway:20260928-r1
 
