@@ -2,13 +2,13 @@
 
 ## Introduction
 
-This repo contains everything that I built for my homelab.  The purpose of my homelab is to create an environment that I maintain and allows me to expand my knowledge on topics such as: Terraform, Kubernetes and FluxCD.  Terraform is used to automate the whole environment.  In the development environment it configures Kubernetes on k3d and then hands the process over to FluxCD to build out the cluster.  In the UAT and PRD clusters Terraform creates the VM's on Proxmox and provisions Kubernetes on Talos Linux and then also hands the process over to FluxCD.  
+This repo contains everything that I built for my homelab.  The purpose of my homelab is to create an environment that I maintain and allows me to expand my knowledge on topics such as: Terraform, Kubernetes and FluxCD.  Terraform is used to automate the whole environment.  Every cluster runs Talos Linux: Terraform creates the VMs (on Proxmox for production, on my laptop's KVM for development), provisions Kubernetes on them from one shared Talos module, and hands the process over to FluxCD to build out the cluster.
 
 By self-hosting a blog on Ghost CMS, it creates a real-world environment that makes me feel responsible for the entire process of deploying and maintaining the application and to think about backup strategies, security, scalability and the ease of deployment and maintenance.
 
 ## Cluster Provisioning & Architecture
 
-I use [Talos Linux](https://www.talos.dev/) on Proxmox to set up my clusters. I prefer Talos because it is lightweight, minimal and provides production grade security right out of the box. My installation is completely manged by Terraform which allows me to manage all my Talos clusters across environments.
+I use [Talos Linux](https://www.talos.dev/) to set up my clusters. I prefer Talos because it is lightweight, minimal and provides production grade security right out of the box. My installation is completely manged by Terraform which allows me to manage all my Talos clusters across environments.
 
 Below is my current list of Kubernetes Clusters and their functions:
 
@@ -21,7 +21,7 @@ Below is my current list of Kubernetes Clusters and their functions:
     <tr>
     <td>1</td>
     <td>Bahamut</td>
-        <td>Contains a locally built k3d cluster that is maintained by FluxCD.  It is a place to quickly test new concepts before moving them to Talos Linux</td>
+        <td>DEV cluster on Talos Linux: three control planes on my laptop's KVM (libvirt), built with Terraform from the same Talos module, machine config and image as Yojimbo. Every Talos upgrade or config change is tried here before it goes to Yojimbo.</td>
     </tr>
     <tr>
         <td>2</td>
@@ -29,6 +29,28 @@ Below is my current list of Kubernetes Clusters and their functions:
         <td>PRD cluster on Talos Linux, built with Terraform on Proxmox.  Treated as a production system with the goal to keeping it running as much as possible.</td>
     </tr>
 </table>
+
+### Trying a Talos change
+
+`terraform/modules/talos-cluster` holds everything Talos (machine-config
+templates, image schematic, Cilium bootstrap) and is shared by both clusters;
+`terraform/modules/talos` (Proxmox) and `terraform/modules/talos-libvirt` (KVM)
+only build the VMs. A change is proven on Bahamut first:
+
+1. Make it in the shared module, or bump `talos_version` / `image.version` in
+   `terraform/bahamut/main.tf`.
+2. `terraform -chdir=terraform/bahamut apply` — or, for a version bump on a
+   running cluster, `talosctl upgrade --image <installer>` one node at a time
+   (the installer is `factory.talos.dev/nocloud-installer/<schematic>:<version>`,
+   already set as each node's install image).
+3. Check the cluster, iSCSI (synology-csi) included, then do the same in
+   `terraform/yojimbo`.
+
+Bahamut lives on its own libvirt NAT network (192.168.150.0/24), so it and its
+`*-dev.neokube.net` services are reachable from the laptop only. Its External
+Secrets log in to Vault through a `jwt-bahamut` auth mount that Terraform keeps
+in step with the cluster's service-account key, since Vault on the NAS cannot
+reach the cluster to review tokens.
 
 ## ACE on Kubernetes
 
