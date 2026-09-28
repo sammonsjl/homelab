@@ -1,0 +1,54 @@
+# Builds images/synology-csi -- upstream synology-csi plus its own iscsiadm, so
+# the node plugin works under Talos workload isolation. See the Containerfile.
+#
+# Tags: v1.3.1-<commit> (immutable; pin this one) and v1.3.1.
+
+name: synology-csi
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "images/synology-csi/**"
+      - ".github/workflows/synology-csi.yml"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags
+        id: meta
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/synology-csi"
+          echo "tags=${image}:v1.3.1-${GITHUB_SHA::7},${image}:v1.3.1" >> "$GITHUB_OUTPUT"
+
+      # The Talos nodes are amd64.
+      - uses: docker/build-push-action@v6
+        with:
+          context: images/synology-csi
+          file: images/synology-csi/Containerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+      # Fail the run if the image does not carry the one thing it exists for.
+      - name: Check iscsiadm is in the image
+        run: |
+          ref="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/synology-csi:v1.3.1-${GITHUB_SHA::7}"
+          docker run --rm --entrypoint sh "$ref" -c \
+            'iscsiadm --version && test ! -e /etc/iscsi/initiatorname.iscsi && echo "no baked initiator name"'

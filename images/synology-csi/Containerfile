@@ -1,0 +1,33 @@
+# synology-csi with its own iscsiadm, for Talos workload isolation.
+#
+# Talos 1.14 runs the kubelet and every pod inside a sandbox PID + mount
+# namespace. Upstream synology-csi carries no iscsiadm and expects to borrow the
+# host's -- the old workaround here was an nsenter into /proc/1's mount
+# namespace. Inside the sandbox, /proc/1 is the sandbox, not the host, so that
+# lands somewhere with no iscsiadm and every iSCSI attach fails.
+#
+# The fix is to stop borrowing. This image carries iscsiadm itself, and the node
+# plugin runs it in its own pod. It talks to the HOST's iscsid (Talos's
+# iscsi-tools extension) over iscsid's abstract unix socket, which is scoped to
+# the network namespace -- shared with the host through hostNetwork, and not
+# part of the sandbox. Only the userspace client moves; the daemon, the kernel
+# initiator and the sessions stay on the host. It works the same with the
+# sandbox on or off, so odin (Talos 1.13) and yojimbo (1.14) share one config.
+FROM docker.io/synology/synology-csi:v1.3.1
+
+# Alpine 3.24 ships open-iscsi 2.1.12; Talos 1.14.1's iscsi-tools runs iscsid
+# 2.1.13. Same 2.1 series and IPC protocol.
+RUN apk add --no-cache open-iscsi
+
+# Installing the package generates a random InitiatorName and writes it here, so
+# every node running this image would carry the same one. It is never used --
+# iscsiadm does not read this file; iscsid does, and iscsid is the host's, with
+# Talos's per-node name (open-iscsi usr/initiator.c: a login request without a
+# name gets the daemon's). Removed so nobody mistakes it for the identity in use,
+# and so starting an iscsid in this container fails loudly instead of silently
+# presenting a shared name to the NAS.
+RUN rm -f /etc/iscsi/initiatorname.iscsi
+
+LABEL org.opencontainers.image.source="https://github.com/sammonsjl/homelab" \
+      org.opencontainers.image.description="synology-csi v1.3.1 with its own iscsiadm, for Talos workload isolation" \
+      org.opencontainers.image.licenses="Apache-2.0"
