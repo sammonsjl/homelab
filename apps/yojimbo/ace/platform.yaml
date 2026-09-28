@@ -22,7 +22,10 @@ spec:
     # console and 404 every component API.
     service_type: LoadBalancer
     service_annotations:
-      external-dns.alpha.kubernetes.io/hostname: ace.neokube.net
+      # external-dns.kubernetes.io/, not the old .alpha. prefix: external-dns
+      # 0.22 stopped reading that with no fallback, so the record would
+      # silently never be created.
+      external-dns.kubernetes.io/hostname: ace.neokube.net
     # Pinned for the same reason as every other component below.
     image: ghcr.io/sammonsjl/ace-gateway:20260910-11f2029
 
