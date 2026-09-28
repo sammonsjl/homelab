@@ -2,12 +2,24 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base/external-secrets/
-
+# JWT auth, not kubernetes: Vault on the NAS cannot reach bahamut's API server
+# behind the laptop's NAT to review tokens, so it validates them against the
+# cluster's service-account public key instead (terraform/bahamut/vault.tf).
 patches:
   - target:
       kind: ClusterSecretStore
       name: vault
     patch: |-
-      - op: replace
-        path: /spec/provider/vault/auth/kubernetes/mountPath
-        value: kubernetes-bahamut
+      - op: remove
+        path: /spec/provider/vault/auth/kubernetes
+      - op: add
+        path: /spec/provider/vault/auth/jwt
+        value:
+          path: jwt-bahamut
+          role: external-secrets
+          kubernetesServiceAccountToken:
+            serviceAccountRef:
+              name: external-secrets
+              namespace: external-secrets
+              audiences:
+                - vault

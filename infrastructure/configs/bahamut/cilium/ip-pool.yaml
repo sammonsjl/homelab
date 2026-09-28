@@ -1,8 +1,10 @@
+# On bahamut's libvirt NAT network (terraform/bahamut), so reachable from the
+# laptop only.
 apiVersion: cilium.io/v2
 kind: CiliumLoadBalancerIPPool
 metadata:
   name: ip-pool
 spec:
   blocks:
-    - start: 172.50.0.100
-      stop: 172.50.0.150
+    - start: 192.168.150.100
+      stop: 192.168.150.150
