@@ -107,6 +107,25 @@
       ],
       "pinDigests": false,
       "enabled": false
+    },
+    {
+      "description": "Bump Cilium's bootstrap version and its Flux HelmRelease in one PR, so a rebuilt cluster never bootstraps an older Cilium than Flux runs",
+      "matchPackageNames": [
+        "cilium"
+      ],
+      "groupName": "cilium"
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "The Cilium version Talos bootstraps with (inline manifest), kept with the Flux HelmRelease",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)terraform/modules/talos-cluster/inline-manifests/cilium-install\\.yaml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) registryUrl=(?<registryUrl>\\S+) depName=(?<depName>\\S+)\\s+- --version=v(?<currentValue>\\S+)"
+      ]
     }
   ]
 }

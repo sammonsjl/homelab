@@ -75,7 +75,14 @@ spec:
           command:
             - cilium
             - install
-            - --version=v1.19.5
+            # Must match the Flux HelmRelease that takes over
+            # (infrastructure/controllers/base/cilium/release.yaml; Renovate
+            # bumps both together). An older bootstrap Cilium can reject the
+            # Gateway API CRDs installed next to it: 1.19 wants TLSRoute
+            # v1alpha2, which the v1.6 CRDs no longer serve, and its operator
+            # crash-loops before Flux ever runs.
+            # renovate: datasource=helm registryUrl=https://helm.cilium.io depName=cilium
+            - --version=v1.20.2
             - --set
             - kubeProxyReplacement=true
             - --values

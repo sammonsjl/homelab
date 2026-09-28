@@ -86,7 +86,10 @@ resource "libvirt_cloudinit_disk" "node" {
     instance-id    = each.key
     local-hostname = each.key
   })
-  user_data = ""
+  # A cloud-config with nothing in it, as Proxmox writes. Talos reads that as
+  # "no machine config here" and opens its maintenance API; with no user-data
+  # at all it retries "config not found" forever and the API never opens.
+  user_data = "#cloud-config\n"
   network_config = yamlencode({
     version = 2
     ethernets = {

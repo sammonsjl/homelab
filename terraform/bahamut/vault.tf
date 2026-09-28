@@ -10,7 +10,7 @@ resource "vault_jwt_auth_backend" "bahamut" {
   path                   = "jwt-bahamut"
   type                   = "jwt"
   description            = "bahamut service-account tokens (External Secrets)"
-  jwt_validation_pubkeys = [module.talos.service_account_public_key_pem]
+  jwt_validation_pubkeys = [trimspace(module.talos.service_account_public_key_pem)]
   bound_issuer           = module.talos.service_account_issuer
 }
 
