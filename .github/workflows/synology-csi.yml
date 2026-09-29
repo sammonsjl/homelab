@@ -1,11 +1,13 @@
-# Builds images/synology-csi -- upstream synology-csi plus its own iscsiadm, so
-# the node plugin works under Talos workload isolation. See the Containerfile.
+# Builds images/synology-csi -- synology-csi compiled from its release tag, plus
+# its own iscsiadm, so the node plugin works under Talos workload isolation.
+# See the Containerfile.
 #
 # Published as ghcr.io/<owner>/synology-csi-talos, not synology-csi: that name
 # is an older package pushed by hand, which this repo's workflow has no write
 # access to.
 #
-# Tags: v1.3.1-<commit> (immutable; pin this one) and v1.3.1.
+# Tags: <version>-<commit> (immutable; pin this one) and <version>, where the
+# version is the Containerfile's SYNOLOGY_CSI_VERSION.
 
 name: synology-csi
 
@@ -39,7 +41,9 @@ jobs:
         id: meta
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/synology-csi-talos"
-          echo "tags=${image}:v1.3.1-${GITHUB_SHA::7},${image}:v1.3.1" >> "$GITHUB_OUTPUT"
+          version=$(sed -n 's/^ARG SYNOLOGY_CSI_VERSION=//p' images/synology-csi/Containerfile)
+          echo "ref=${image}:${version}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "tags=${image}:${version}-${GITHUB_SHA::7},${image}:${version}" >> "$GITHUB_OUTPUT"
 
       # The Talos nodes are amd64.
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -55,10 +59,19 @@ jobs:
       # mismatch with the node's iscsid hangs iscsid rather than erroring.
       - name: Check iscsiadm is in the image, at the pinned version
         run: |
-          ref="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/synology-csi-talos:v1.3.1-${GITHUB_SHA::7}"
+          ref="${{ steps.meta.outputs.ref }}"
           want=$(sed -n 's/^ARG OPEN_ISCSI_VERSION=//p' images/synology-csi/Containerfile)
           got=$(docker run --rm --entrypoint iscsiadm "$ref" --version)
           echo "$got"
           [ "$got" = "iscsiadm version ${want}" ] || { echo "::error::expected iscsiadm ${want}, got: ${got}"; exit 1; }
           docker run --rm --entrypoint sh "$ref" -c \
             'test ! -e /etc/iscsi/initiatorname.iscsi && echo "no baked initiator name"'
+
+      # The driver itself, and blockdev: v1.4.0 runs it to flush a device before
+      # logging the session out, and an image without it fails every unstage.
+      - name: Check the driver runs and its tools are present
+        run: |
+          ref="${{ steps.meta.outputs.ref }}"
+          docker run --rm "$ref" --help | head -1
+          docker run --rm --entrypoint sh "$ref" -c \
+            'for c in blockdev mkfs.ext4 mkfs.xfs blkid resize2fs; do command -v $c || exit 1; done'

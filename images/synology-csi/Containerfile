@@ -1,4 +1,10 @@
-# synology-csi with its own iscsiadm, for Talos workload isolation.
+# synology-csi v1.4.0, built from source, with its own iscsiadm, for Talos
+# workload isolation.
+#
+# Synology publishes no v1.4.0 image: its Dockerfile moved to a UBI9 base whose
+# packages need a RHEL subscription to install. So the driver is compiled here
+# from the release tag and dropped onto the same Alpine runtime v1.3.1 shipped
+# on, which also matches the iscsiadm below.
 #
 # Talos 1.14 runs the kubelet and every pod inside a sandbox PID + mount
 # namespace. Upstream synology-csi carries no iscsiadm and expects to borrow the
@@ -28,7 +34,25 @@
 ARG OPEN_ISCSI_VERSION=2.1.13
 ARG OPEN_ISCSI_SHA256=1c3a8ad7d86e57d247a08c013f5055ef695b3a07ed760d1aea7d90b9f9011602
 
-# Same Alpine as the upstream image, so the libraries match at runtime. Talos
+# The driver. v1.4.0 still reaches host tools through `chroot /host /usr/bin/env`,
+# which Talos cannot satisfy (no /usr/bin/env), so this image keeps running
+# iscsiadm itself via --iscsiadm-path. Tag v1.4.0 is commit 02af05d.
+ARG SYNOLOGY_CSI_VERSION=v1.4.0
+ARG SYNOLOGY_CSI_SHA256=e7a9eb30047abcc4b24ae2930c474710ff45f16c8078bb1ab26ce9884fe5f396
+
+FROM docker.io/library/golang:1.25-alpine AS driver
+ARG SYNOLOGY_CSI_VERSION
+ARG SYNOLOGY_CSI_SHA256
+RUN apk add --no-cache make
+WORKDIR /src
+RUN wget -qO synology-csi.tar.gz \
+      "https://github.com/SynologyOpenSource/synology-csi/archive/refs/tags/${SYNOLOGY_CSI_VERSION}.tar.gz" \
+ && echo "${SYNOLOGY_CSI_SHA256}  synology-csi.tar.gz" | sha256sum -c - \
+ && tar -xzf synology-csi.tar.gz --strip-components=1
+# Upstream's Makefile: a static binary (CGO_ENABLED=0), amd64 like the nodes.
+RUN make bin/synology-csi-driver
+
+# Same Alpine as the runtime stage, so the libraries match. Talos
 # builds against musl too.
 FROM docker.io/library/alpine:3.24 AS open-iscsi
 ARG OPEN_ISCSI_VERSION
@@ -49,9 +73,17 @@ RUN CFLAGS="-DGLOB_ONLYDIR=0" meson setup build \
  && meson compile -C build \
  && DESTDIR=/out meson install -C build
 
-FROM docker.io/synology/synology-csi:v1.3.1
+FROM docker.io/library/alpine:3.24
 ARG OPEN_ISCSI_VERSION
-RUN apk add --no-cache kmod-libs libmount libcrypto3
+ARG SYNOLOGY_CSI_VERSION
+# v1.3.1's runtime tools (its Alpine Dockerfile), then iscsiadm's libraries.
+# util-linux also brings blockdev, which v1.4.0 runs to flush a device before
+# logging its session out.
+RUN apk add --no-cache \
+      e2fsprogs e2fsprogs-extra xfsprogs xfsprogs-extra blkid util-linux iproute2 bash \
+      btrfs-progs ca-certificates cifs-utils nfs-utils nvme-cli \
+      kmod-libs libmount libcrypto3
+COPY --from=driver /src/bin/synology-csi-driver /synology-csi-driver
 COPY --from=open-iscsi /out/usr/sbin/iscsiadm /usr/sbin/iscsiadm
 COPY --from=open-iscsi /out/usr/lib/libopeniscsiusr.so* /usr/lib/
 COPY --from=open-iscsi /out/etc/iscsi/iscsid.conf /etc/iscsi/iscsid.conf
@@ -62,6 +94,9 @@ COPY --from=open-iscsi /out/etc/iscsi/iscsid.conf /etc/iscsi/iscsid.conf
 # container it would fail loudly instead of presenting a shared name to the NAS.
 
 LABEL org.opencontainers.image.source="https://github.com/sammonsjl/homelab" \
-      org.opencontainers.image.description="synology-csi v1.3.1 with open-iscsi ${OPEN_ISCSI_VERSION} iscsiadm, for Talos workload isolation" \
+      org.opencontainers.image.description="synology-csi ${SYNOLOGY_CSI_VERSION} with open-iscsi ${OPEN_ISCSI_VERSION} iscsiadm, for Talos workload isolation" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      io.open-iscsi.version="${OPEN_ISCSI_VERSION}"
+      io.open-iscsi.version="${OPEN_ISCSI_VERSION}" \
+      com.synology.csi.version="${SYNOLOGY_CSI_VERSION}"
+
+ENTRYPOINT ["/synology-csi-driver"]
