@@ -15,6 +15,9 @@ metadata:
 spec:
   gateway:
     external_url: https://ace.neokube.net
+    # Let's Encrypt, from certificate.yaml (cert-manager, DNS-01). Without it
+    # the operator self-signs, and every browser warns.
+    tls_secret: ace-gateway-letsencrypt
     replicas: 1
     # envoy terminates TLS on 443 itself and its listener comes from the
     # gateway over xDS, so it takes its own address rather than sitting behind
