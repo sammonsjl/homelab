@@ -1,8 +1,9 @@
 """pulse: a read-only, public summary of the cluster for the NeoKube site.
 
 GET /pulse/status.json returns node readiness, versions, the GitOps revision,
-the ACE platform's state and a short list of recent events. Everything comes
-from the kube API through this pod's service account; nothing else is read.
+the ACE platform's state, a short list of recent events, and the last hour of
+cluster CPU and memory use. The metrics come from the in-cluster Prometheus;
+everything else comes from the kube API through this pod's service account.
 
 The document is public, so it is built from an allow-list: no IPs, no event
 messages, and events only from the namespaces and kinds listed below.
@@ -13,6 +14,7 @@ import os
 import ssl
 import threading
 import time
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -22,6 +24,12 @@ SA = "/var/run/secrets/kubernetes.io/serviceaccount"
 TTL = 20                 # seconds a built document is reused
 EVENT_WINDOW = 6 * 3600  # how far back events may come from
 EVENT_MAX = 12
+PROMETHEUS = os.environ.get("PROMETHEUS_URL", "http://kube-prometheus-stack-prometheus.monitoring:9090")
+METRIC_WINDOW, METRIC_STEP = 3600, 120  # one hour, a point every two minutes
+METRICS = {
+    "cpu": '1 - avg(rate(node_cpu_seconds_total{mode="idle"}[2m]))',
+    "mem": "1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)",
+}
 
 EVENT_NAMESPACES = {"ghost", "ace", "flux-system", "kube-system", "monitoring", "default"}
 EVENT_KINDS = {
@@ -44,6 +52,15 @@ def get(path):
     req = urllib.request.Request(API + path, headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req, context=_ctx, timeout=5) as r:
         return json.load(r)
+
+
+def series(query, end):
+    """One cluster-wide series as fractions 0..1, oldest first."""
+    qs = urllib.parse.urlencode({"query": query, "start": end - METRIC_WINDOW, "end": end,
+                                 "step": METRIC_STEP})
+    with urllib.request.urlopen(f"{PROMETHEUS}/api/v1/query_range?{qs}", timeout=5) as r:
+        result = json.load(r)["data"]["result"]
+    return [round(float(v), 4) for _, v in result[0]["values"]] if result else []
 
 
 def ts(s):
@@ -113,6 +130,13 @@ def build():
         }
     except Exception:
         doc["ace"] = None
+
+    try:
+        end = int(now.timestamp())
+        doc["metrics"] = {"window_s": METRIC_WINDOW, "step_s": METRIC_STEP,
+                          **{k: series(q, end) for k, q in METRICS.items()}}
+    except Exception:
+        doc["metrics"] = None
 
     events, seen = [], set()
     items = get("/api/v1/events?limit=500")["items"]
