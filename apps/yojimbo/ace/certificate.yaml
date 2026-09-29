@@ -1,0 +1,16 @@
+# ACE's front door certificate. envoy terminates TLS itself on
+# ace.neokube.net (192.168.1.32), so this is its own Certificate rather than
+# the LAN gateway's wildcard. platform.yaml names the secret in
+# gateway.tls_secret, and ace-operator mounts it.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ace-gateway-letsencrypt
+  namespace: ace
+spec:
+  secretName: ace-gateway-letsencrypt
+  dnsNames:
+    - ace.neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
