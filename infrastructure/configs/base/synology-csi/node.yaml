@@ -91,8 +91,9 @@ spec:
           securityContext:
             privileged: true
           imagePullPolicy: IfNotPresent
-          # Upstream v1.3.1 plus its own iscsiadm (images/synology-csi).
-          image: ghcr.io/sammonsjl/synology-csi-talos:v1.3.1-7400c96
+          # synology-csi v1.4.0 built from source, plus its own iscsiadm
+          # (images/synology-csi).
+          image: ghcr.io/sammonsjl/synology-csi-talos:v1.4.0-02f6982
           args:
             - --nodeid=$(KUBE_NODE_NAME)
             - --iscsiadm-path=/usr/sbin/iscsiadm
