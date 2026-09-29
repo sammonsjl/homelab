@@ -18,3 +18,22 @@ spec:
   parentRefs:
     - name: gateway
       namespace: cloudflare
+  # Both rules, because a patch replaces the base's list. /pulse/ is the
+  # cluster summary the theme polls (apps/base/pulse); the longer prefix wins.
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /pulse/
+      backendRefs:
+        - kind: Service
+          name: pulse
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - kind: Service
+          name: ghost
+          port: 2368
