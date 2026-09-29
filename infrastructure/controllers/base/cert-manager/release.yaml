@@ -1,0 +1,32 @@
+# cert-manager issues the Let's Encrypt certificates for the LAN gateway
+# (*.neokube.net) and ACE's front door, over DNS-01 against Cloudflare. The
+# issuers live in infrastructure/configs, which depends on this.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+spec:
+  releaseName: cert-manager
+  targetNamespace: cert-manager
+  interval: 10m
+  chart:
+    spec:
+      chart: cert-manager
+      version: v1.21.2
+      sourceRef:
+        kind: HelmRepository
+        name: jetstack
+        namespace: flux-system
+  install:
+    createNamespace: true
+  values:
+    crds:
+      enabled: true
+      keep: true
+    # Check DNS-01 propagation against public resolvers. The cluster's own
+    # path to DNS ends at the Pi-hole, which answers the neokube.net names
+    # locally and has no reason to know about _acme-challenge records.
+    extraArgs:
+      - --dns01-recursive-nameservers-only
+      - --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53
