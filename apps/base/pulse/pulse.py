@@ -118,10 +118,13 @@ def build():
     items = get("/api/v1/events?limit=500")["items"]
     items.sort(key=lambda e: e.get("lastTimestamp") or e.get("eventTime") or "", reverse=True)
     if doc["gitops"]:
-        doc["gitops"]["checked"] = next(
+        pulled = next(
             (e.get("lastTimestamp") or e.get("eventTime") for e in items
              if e.get("reason") == "GitOperationSucceeded"
              and e.get("involvedObject", {}).get("name") == "flux-system"), None)
+        # A pull that brings a new revision is recorded as the artifact, not
+        # as a GitOperationSucceeded event, so take whichever is newer.
+        doc["gitops"]["checked"] = max(filter(None, [pulled, doc["gitops"]["committed"]]), default=None)
     for e in items:
         obj = e.get("involvedObject", {})
         when = ts(e.get("lastTimestamp") or e.get("eventTime"))
