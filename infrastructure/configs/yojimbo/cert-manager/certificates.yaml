@@ -1,0 +1,15 @@
+# The LAN gateway's certificate. A wildcard, so the individual LAN hostnames
+# (home, grafana, phpmyadmin, hubble) never appear in Certificate Transparency
+# logs. It must live beside the Gateway that references it.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: neokube-wildcard
+  namespace: kube-system
+spec:
+  secretName: neokube-wildcard-tls
+  dnsNames:
+    - "*.neokube.net"
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt-staging
