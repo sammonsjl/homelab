@@ -9,6 +9,9 @@ metadata:
     gethomepage.dev/icon: ghost.png
     gethomepage.dev/name: Ghost
     gethomepage.dev/statusStyle: dot
+    # Homepage links a tile to the route's first rule, which is /pulse/ -- point
+    # it at the site itself.
+    gethomepage.dev/href: https://neokube.net/
   namespace: cloudflare
   labels:
     app.kubernetes.io/name: ghost

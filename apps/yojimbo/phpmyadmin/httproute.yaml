@@ -15,3 +15,7 @@ metadata:
 spec:
   hostnames:
     - phpmyadmin.neokube.net
+  parentRefs:
+    - name: gateway
+      namespace: kube-system
+      sectionName: https

@@ -1,0 +1,19 @@
+# Anything that arrives over plain http on the LAN gateway is sent to https.
+# Every app route attaches to the https listener only, so this is the one
+# route on http, and it matches every hostname.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https
+  namespace: kube-system
+spec:
+  parentRefs:
+    - name: gateway
+      namespace: kube-system
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

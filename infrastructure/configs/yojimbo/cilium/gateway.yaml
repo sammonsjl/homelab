@@ -12,3 +12,27 @@ spec:
   addresses:
     - type: IPAddress
       value: 192.168.1.31
+  # Both listeners, because a patch replaces the base's list. Browsers try
+  # https first, and with nothing on 443 the LB dropped the packets and every
+  # LAN name timed out. https terminates with the Let's Encrypt wildcard from
+  # cert-manager (infrastructure/configs/yojimbo/cert-manager); http now only
+  # redirects to it (httproute.yaml, http-to-https).
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.neokube.net"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: neokube-wildcard-tls
+      allowedRoutes:
+        namespaces:
+          from: All

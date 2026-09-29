@@ -16,3 +16,7 @@ metadata:
 spec:
   hostnames:
     - hubble.neokube.net
+  parentRefs:
+    - name: gateway
+      namespace: kube-system
+      sectionName: https

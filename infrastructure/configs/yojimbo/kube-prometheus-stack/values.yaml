@@ -132,6 +132,7 @@ grafana:
       parentRefs:
         - name: gateway
           namespace: kube-system
+          sectionName: https
 
 # The rest of the stack: small, steady, and previously requesting nothing at
 # all, which left the scheduler unable to account for any of it.

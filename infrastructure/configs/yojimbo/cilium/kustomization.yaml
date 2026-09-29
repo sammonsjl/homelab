@@ -3,10 +3,12 @@ kind: Kustomization
 resources:
   - ../../base/cilium/
   - ip-pool.yaml
+  - redirect.yaml
 patches:
   - path: httproute.yaml
     target:
       kind: HTTPRoute
+      name: hubble
   - path: gateway.yaml
     target:
       kind: Gateway
