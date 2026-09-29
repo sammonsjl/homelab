@@ -40,7 +40,7 @@ ARG OPEN_ISCSI_SHA256=1c3a8ad7d86e57d247a08c013f5055ef695b3a07ed760d1aea7d90b9f9
 ARG SYNOLOGY_CSI_VERSION=v1.4.0
 ARG SYNOLOGY_CSI_SHA256=e7a9eb30047abcc4b24ae2930c474710ff45f16c8078bb1ab26ce9884fe5f396
 
-FROM docker.io/library/golang:1.25-alpine AS driver
+FROM docker.io/library/golang:1.27-alpine AS driver
 ARG SYNOLOGY_CSI_VERSION
 ARG SYNOLOGY_CSI_SHA256
 RUN apk add --no-cache make
