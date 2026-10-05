@@ -33,11 +33,12 @@ Commands are for a shell with `oc` pointed at the cluster, in this folder.
        oc create namespace liferay
        oc apply -f secrets/liferay-database.json -f secrets/liferay-default.json
 
-2. Put the document library back while Liferay's pod is up, then stop Liferay.
+2. Put the document library back while Liferay's pod is up, then stop Liferay. The folder is emptied,
+   not removed: on lud it is its own NFS volume (it was on `{{ documents_volume.source }}` for this backup).
 
        oc cp document_library.tgz liferay/{{ liferay_pod }}:/tmp/document_library.tgz -c {{ liferay_container }}
        oc exec -n liferay {{ liferay_pod }} -c {{ liferay_container }} -- bash -c \
-         'rm -rf /opt/liferay/data/document_library && tar -C /opt/liferay/data -xzf /tmp/document_library.tgz && rm /tmp/document_library.tgz'
+         'find /opt/liferay/data/document_library -mindepth 1 -delete; tar -C /opt/liferay/data -xzf /tmp/document_library.tgz && rm /tmp/document_library.tgz'
        oc scale -n liferay statefulset/{{ liferay_statefulset }} --replicas=0
        oc wait -n liferay --for=delete pod/{{ liferay_pod }} --timeout=5m
 

@@ -23,6 +23,7 @@ that has the NAS folder mounted at `/backups`
 2. Counts the rows of the content tables in the live database.
 3. `pg_dump` in the database pod; copies the dump to the NAS and checks the copy's SHA-256 against the pod's.
 4. Archives the document library in Liferay's pod; copies and checks it the same way, and that every file is in it.
+   Notes which volume it was on.
 5. Writes the two secrets a restore needs, and which image was running.
 6. **Restore test:** sends the dump back *from the NAS*, restores it into a scratch database, counts the same
    tables, compares, and drops the scratch database.
@@ -56,8 +57,8 @@ It then runs `liferay_restore.yml` against the live site:
 2. **Saves what the live site holds right now** (database dump and document library) to
    `pre-restore/<stamp>/` next to the backups; the newest three are kept. If the site is too broken to dump, it
    says so in the result and goes on.
-3. Replaces the document library, stops Liferay, replaces the database, and starts Liferay with the search
-   index being rebuilt.
+3. Replaces the contents of the document library (and stops unless they landed on the NFS volume), stops
+   Liferay, replaces the database, and starts Liferay with the search index being rebuilt.
 4. Checks the rows, the documents, three pages and that the home page lists every lesson again.
 5. Takes the reindex setting off again (one more restart of Liferay) and writes `last-restore.json`.
 
@@ -147,5 +148,13 @@ The backup assumes lud's volumes are on the NAS, as on the other clusters:
       helm upgrade --install nfs-csi csi-driver-nfs/csi-driver-nfs --version 4.13.4 -n kube-system
       oc adm policy add-scc-to-user privileged -z csi-nfs-controller-sa -z csi-nfs-node-sa -n kube-system
 
-Liferay's PostgreSQL and data volume and AAP's PostgreSQL are on `synology-iscsi`; the image registry is on
-`nfs-csi`; Liferay's search index stays on lud's own disk.
+| What | Where |
+|---|---|
+| Liferay's document library (uploaded files and pictures) | `nfs-csi`: `k8s-nfs-yojimbo/lud/liferay-liferay-document-library`, mounted at `/opt/liferay/data/document_library`, ReadWriteMany |
+| The rest of Liferay's volume (OSGi state, logs, work folders) | `synology-iscsi` |
+| Liferay's PostgreSQL, AAP's PostgreSQL | `synology-iscsi` |
+| The image registry | `nfs-csi` |
+| Liferay's search index | lud's own disk (`local-path`); a reindex rebuilds it |
+
+The document library is a mount point, so the jobs empty it rather than remove it, the backup fails if it is
+empty while the database lists documents, and a live restore fails if the files did not land on an NFS volume.

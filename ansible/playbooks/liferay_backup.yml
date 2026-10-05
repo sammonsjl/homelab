@@ -202,8 +202,24 @@
             namespace: "{{ liferay_namespace }}"
             pod: "{{ liferay_pod }}"
             container: "{{ liferay_container }}"
-            command: "bash -c {{ ('tar --directory /opt/liferay/data --create --gzip --file ' ~ remote_documents ~ ' document_library && sha256sum ' ~ remote_documents ~ ' && find /opt/liferay/data/document_library -type f | wc -l') | quote }}"
+            command: "bash -c {{ ('tar --directory /opt/liferay/data --create --gzip --file ' ~ remote_documents ~ ' document_library && sha256sum ' ~ remote_documents ~ ' && find /opt/liferay/data/document_library -type f | wc -l && df --output=fstype,source /opt/liferay/data/document_library | tail -1') | quote }}"
           register: archived
+
+        # On lud the document library is its own NFS volume, mounted over a folder of
+        # Liferay's main volume. Were the mount missing, Liferay would see that empty
+        # folder, and so would this backup.
+        - name: Stop if the document library is empty while the database lists documents
+          ansible.builtin.assert:
+            that: archived.stdout_lines[1] | int > 0 or live_counts.dlfileentry | default(0) | int == 0
+            fail_msg: >-
+              /opt/liferay/data/document_library holds no files, but the database lists
+              {{ live_counts.dlfileentry | default('?') }} documents. Is its volume mounted?
+
+        - name: Keep which volume it is on
+          ansible.builtin.set_fact:
+            documents_volume:
+              filesystem: "{{ archived.stdout_lines[2].split()[0] }}"
+              source: "{{ archived.stdout_lines[2].split()[1:] | join(' ') }}"
 
         - name: Copy the archive to the NAS
           kubernetes.core.k8s_cp:
@@ -293,6 +309,7 @@
             content: >-
               {{ {'image': liferay_image,
                   'chart': release.resources[0].metadata.labels['helm.sh/chart'] | default(''),
+                  'document_library_volume': documents_volume,
                   'statefulset_generation': release.resources[0].metadata.generation,
                   'pods': pods.results | map(attribute='resources') | map('first')
                           | map(attribute='metadata.name') | list,
@@ -378,7 +395,8 @@
                                'sha256': dump_file.stat.checksum},
                   'document_library': {'file': 'document_library.tgz', 'bytes': documents_file.stat.size,
                                        'sha256': documents_file.stat.checksum,
-                                       'files': archived.stdout_lines[1] | int},
+                                       'files': archived.stdout_lines[1] | int,
+                                       'volume': documents_volume},
                   'secrets': backup_secrets,
                   'restore_test': {'result': 'passed', 'live': live_counts, 'restored': restored_counts},
                   'site_check': site_checks | map(attribute='path') | list} | to_nice_json }}

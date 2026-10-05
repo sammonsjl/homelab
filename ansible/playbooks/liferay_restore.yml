@@ -29,6 +29,11 @@
     confirm_live_restore: ""
     # Stop the copy again when done. Never applies to the live namespace.
     stop_afterwards: true
+    # The live site keeps its document library on its own NFS volume, mounted at
+    # /opt/liferay/data/document_library. The restore fails if the files went
+    # anywhere else, such as the folder underneath a missing mount. The
+    # rehearsal copy has one local volume, so nothing is required of it.
+    document_library_filesystem: "{{ rehearsal | ternary('', 'nfs') }}"
     # Copies of the live site saved before a live restore; this many are kept.
     pre_restore_keep: 3
 
@@ -226,13 +231,21 @@
             local_path: "{{ backup }}/document_library.tgz"
             state: to_pod
 
+        # Emptied, not removed: on the live site the folder is a mount point.
         - name: Replace the document library with it
           kubernetes.core.k8s_exec:
             namespace: "{{ restore_namespace }}"
             pod: "{{ liferay_pod }}"
             container: "{{ liferay_container }}"
-            command: "bash -c {{ ('rm -rf /opt/liferay/data/document_library && tar --directory /opt/liferay/data --extract --gzip --file ' ~ remote_documents ~ ' && rm ' ~ remote_documents ~ ' && find /opt/liferay/data/document_library -type f | wc -l') | quote }}"
+            command: "bash -c {{ ('find /opt/liferay/data/document_library -mindepth 1 -delete && tar --directory /opt/liferay/data --extract --gzip --file ' ~ remote_documents ~ ' && rm ' ~ remote_documents ~ ' && df --output=fstype,source /opt/liferay/data/document_library | tail -1 && find /opt/liferay/data/document_library -type f | wc -l') | quote }}"
           register: documents
+
+        - name: Stop unless the files went onto the volume they belong on
+          ansible.builtin.assert:
+            that: documents.stdout_lines[-2].split()[0] is match(document_library_filesystem)
+            fail_msg: >-
+              The document library was unpacked onto {{ documents.stdout_lines[-2] }}, not onto a
+              {{ document_library_filesystem }} volume. Is its volume mounted in Liferay's pod?
 
         - name: Stop Liferay
           kubernetes.core.k8s_scale:
@@ -433,6 +446,7 @@
               seconds: "{{ now(utc=true, fmt='%s') | int - started | int }}"
               counts: "{{ restored_counts }}"
               documents: "{{ documents.stdout_lines[-1] | int }}"
+              document_library_volume: "{{ documents.stdout_lines[-2] }}"
               pages: "{{ site_checks | map(attribute='path') | list }}"
               lessons_listed: "{{ home.content | regex_findall('href=\"[^\"]*/b/[a-z0-9-]+') | unique | length }}"
 
