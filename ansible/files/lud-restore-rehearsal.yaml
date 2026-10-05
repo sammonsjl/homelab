@@ -1,0 +1,44 @@
+# What the restore test needs in the cluster.
+#   oc apply -f ansible/files/lud-restore-rehearsal.yaml
+#
+# The rehearsal copy is a second Liferay in its own namespace, liferay-restore,
+# scaled to 0 except while a test runs (how it was made: ../README.md). The
+# backup service account may, there only: read pods and statefulsets, run
+# commands in the pods, and scale the statefulsets. It can read no secret there.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: liferay-restore
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: restore-test
+  namespace: liferay-restore
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create, get]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list, watch, patch]
+  - apiGroups: [apps]
+    resources: [statefulsets/scale]
+    verbs: [get, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: restore-test
+  namespace: liferay-restore
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: restore-test
+subjects:
+  - kind: ServiceAccount
+    name: backup
+    namespace: liferay

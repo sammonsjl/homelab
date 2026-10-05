@@ -48,11 +48,19 @@ Commands are for a shell with `oc` pointed at the cluster, in this folder.
        oc scale -n liferay statefulset/{{ liferay_statefulset }} --replicas=1
        oc rollout status -n liferay statefulset/{{ liferay_statefulset }} --timeout=30m
 
-5. Sign in as the administrator (`test@liferay.com`; the password is
-   `LIFERAY_DEFAULT_PERIOD_ADMIN_PERIOD_PASSWORD` in `secrets/liferay-default.json`,
-   base64) and rebuild the search index: Control Panel > Search > Index Actions >
-   Execute for "Reindex search indexes". Until that finishes, lists and search
-   are incomplete.
+5. Rebuild the search index. Until it is rebuilt, the home page lists no lessons and search finds
+   nothing. Either sign in as the administrator (`test@liferay.com`; the password is
+   `LIFERAY_DEFAULT_PERIOD_ADMIN_PERIOD_PASSWORD` in `secrets/liferay-default.json`, base64) and run
+   Control Panel > Search > Index Actions > "Reindex search indexes", or have Liferay do it at one start:
+
+       oc set env -n liferay statefulset/{{ liferay_statefulset }} -c {{ liferay_container }} LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP=true
+       oc rollout status -n liferay statefulset/{{ liferay_statefulset }} --timeout=30m
+       # when the home page lists the lessons again, take it back off (one more restart):
+       oc set env -n liferay statefulset/{{ liferay_statefulset }} -c {{ liferay_container }} LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP-
+
+These are the steps the AAP job "Test the restore of neokube.net (rehearsal copy on lud)" runs every week
+against a second Liferay in the namespace `liferay-restore`; its last result is in
+`../last-restore-test.json`.
 
 To look at the dump without touching the live database, restore it under
 another name instead of step 3:

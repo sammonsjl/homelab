@@ -5,8 +5,10 @@ Playbooks that AAP on lud (`https://aap.neokube.net`) runs against the homelab.
 | File | What |
 |---|---|
 | `playbooks/liferay_backup.yml` | Nightly backup of neokube.net (Liferay on lud), with a restore test |
-| `playbooks/aap_setup.yml` | The AAP objects that run it: credential, container group, inventory, project, job template, schedule |
+| `playbooks/liferay_restore.yml` | Weekly restore test: the newest backup restored into a second Liferay, started and checked |
+| `playbooks/aap_setup.yml` | The AAP objects that run them: credential, container group, inventory, project, job templates, schedules |
 | `playbooks/templates/backup-README.md.j2` | The restore instructions written into every backup |
+| `files/lud-restore-rehearsal.yaml` | The restore test's namespace and what the `backup` service account may do in it |
 | `files/lud-backup-access.yaml` | The cluster side: a `backup` service account limited to the job, and the NAS folder as a volume |
 | `collections/requirements.yml` | `kubernetes.core`, for running the backup outside AAP (AAP's execution environment has it) |
 
@@ -42,7 +44,49 @@ name. Running commands in a pod is a wide permission inside that namespace; it h
 
 Each backup carries its own `README.md` with the commands. Start there.
 
-### Running it by hand
+## The restore test
+
+Every Sunday at 03:30 (Chicago), and whenever you launch "Test the restore of neokube.net (rehearsal copy on
+lud)", AAP runs `liferay_restore.yml`. It follows the backup's own `README.md` against the **rehearsal copy**:
+a second Liferay in the namespace `liferay-restore`, with its own PostgreSQL and search server on lud's local
+disk, scaled to 0 between tests.
+
+1. Checks the newest backup against its `SHA256SUMS`.
+2. Starts the rehearsal copy.
+3. Replaces its document library with the backup's, stops Liferay, replaces its database with the dump, starts
+   Liferay.
+4. Checks: the content tables hold the rows the backup recorded, every document is back, the home page, a
+   lesson and Social Office answer with the right titles, and the home page lists every lesson again (which
+   needs the search index rebuilt; the rehearsal copy reindexes on every start).
+5. Stops the rehearsal copy and writes `last-restore-test.json` next to the backups.
+
+It takes about four minutes and about 4 GiB of lud's memory while it runs. The live site is not touched.
+
+The same playbook can restore over the live site, deliberately: `-e restore_namespace=liferay
+-e confirm_live_restore=neokube.net`, as a cluster administrator, because the service account may not scale the
+live statefulsets. Afterwards rebuild the search index as the backup's `README.md` says.
+
+### Making the rehearsal copy
+
+Once (it is there since 2026-10-05). From the Liferay workspace, with the secrets of any backup:
+
+    oc apply -f files/lud-restore-rehearsal.yaml
+    for s in liferay-database liferay-default; do
+      sed 's/"namespace": "liferay"/"namespace": "liferay-restore"/' ~/projects/backups/liferay-lud/latest/secrets/$s.json | oc apply -f -
+    done
+    oc adm policy add-scc-to-user nonroot-v2 --serviceaccount liferay-default --namespace liferay-restore
+    oc policy add-role-to-group system:image-puller system:serviceaccounts:liferay-restore --namespace liferay
+    sed 's/storageClassName: synology-iscsi/storageClassName: local-path/' deploy/lud/values.yaml > /tmp/values-restore.yaml
+    helm upgrade --install liferay <liferay-portal>/cloud/helm/default --namespace liferay-restore \
+      --values /tmp/values-restore.yaml --set image.tag=<the tag in the backup's release.json>
+    oc set env --namespace liferay-restore statefulset/liferay-default -c liferay-default \
+      LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP=true LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP_PERIOD_DELAY=10
+    oc scale --namespace liferay-restore statefulset --all --replicas=0
+
+It has no Route, so it is not reachable from outside the cluster. When the live site moves to a new image,
+repeat the `helm upgrade` and `oc set env` lines with the new tag.
+
+### Running the backup by hand
 
 In AAP: launch "Back up neokube.net (Liferay on lud)".
 
@@ -59,7 +103,7 @@ To see the restore test fail on purpose: add `-e restore_check_offset=1`.
 
 Once, and again whenever the objects need putting back.
 
-    oc apply -f files/lud-backup-access.yaml
+    oc apply -f files/lud-backup-access.yaml -f files/lud-restore-rehearsal.yaml
 
 `aap_setup.yml` uses the `ansible.controller` collection. AAP's execution environment image has it, so the
 simplest way is to run the playbook in that image (`podman run`, `ansible-navigator`, or a pod on lud) with:

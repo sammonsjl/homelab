@@ -1,0 +1,310 @@
+---
+# Restores a backup of neokube.net (made by liferay_backup.yml) into a Liferay
+# on lud, by the steps in the backup's own README.md, and checks the result.
+#
+# By default it restores the newest backup into the rehearsal copy (namespace
+# liferay-restore), which it starts for the test and stops afterwards: a full
+# restore test that never touches the live site.
+#
+# It will only restore over the live site if told to twice:
+#   -e restore_namespace=liferay -e confirm_live_restore=neokube.net
+# and its service account has no right to scale the live statefulsets unless
+# you grant it. See ../README.md.
+- name: Restore neokube.net from a backup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    backup_root: /backups
+    backup_name: latest
+
+    restore_namespace: liferay-restore
+    live_namespace: liferay
+    confirm_live_restore: ""
+    # Stop the copy again when done. Never applies to the live namespace.
+    stop_afterwards: true
+
+    liferay_statefulset: liferay-default
+    database_statefulset: liferay-default-database
+    search_statefulset: liferay-default-search
+    liferay_pod: liferay-default-0
+    liferay_container: liferay-default
+    database_pod: liferay-default-database-0
+
+    site_url: "http://liferay-default.{{ restore_namespace }}.svc:8080"
+    site_host: neokube.net
+    site_checks:
+      - path: /
+        title: NeoKube
+      - path: /b/ace-lab-01-prerequisites
+        title: Prerequisites
+      - path: /web/social-office
+        title: Social Office
+
+    psql: psql --username "$POSTGRES_USER" --no-align --tuples-only --field-separator "="
+
+  tasks:
+    - name: Refuse to restore over the live site unless told to twice
+      ansible.builtin.assert:
+        that: restore_namespace != live_namespace or confirm_live_restore == site_host
+        fail_msg: >-
+          This would replace the live site's database. If that is what you want, add
+          -e confirm_live_restore={{ site_host }}.
+
+    - name: Is this the rehearsal copy?
+      ansible.builtin.set_fact:
+        rehearsal: "{{ restore_namespace != live_namespace }}"
+        started: "{{ now(utc=true, fmt='%s') | int }}"
+        started_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+        remote_dump: /tmp/restore-lportal.dump
+        remote_documents: /tmp/restore-document_library.tgz
+
+    # 0. The backup
+
+    - name: Find the backup
+      ansible.builtin.command:
+        cmd: readlink --canonicalize-existing {{ backup_root }}/{{ backup_name }}
+      register: found
+      changed_when: false
+
+    - name: Keep its folder
+      ansible.builtin.set_fact:
+        backup: "{{ found.stdout }}"
+
+    - name: Check its files against SHA256SUMS
+      ansible.builtin.command:
+        cmd: sha256sum --check --quiet SHA256SUMS
+        chdir: "{{ backup }}"
+      changed_when: false
+
+    - name: Read what it held when it was taken
+      ansible.builtin.slurp:
+        src: "{{ backup }}/summary.json"
+      register: summary_file
+
+    - name: Keep that
+      ansible.builtin.set_fact:
+        summary: "{{ summary_file.content | b64decode | from_json }}"
+
+    - name: Count the same tables the backup counted
+      ansible.builtin.set_fact:
+        count_sql: >-
+          select 'tables', count(*) from information_schema.tables where table_schema = current_schema()
+          {% for table in summary.restore_test.live.keys() | reject('equalto', 'tables') %}
+          union all select '{{ table }}', count(*) from {{ table }}
+          {% endfor %}
+
+    - name: Restore, check, and stop the rehearsal copy whatever happens
+      block:
+        # 1. Liferay has to be running: its pod is the way into the data volume
+
+        - name: Start the database and the search server
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ item }}"
+            replicas: 1
+            wait_timeout: 600
+          loop:
+            - "{{ database_statefulset }}"
+            - "{{ search_statefulset }}"
+
+        - name: Start Liferay
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            replicas: 1
+            wait_timeout: 1800
+
+        # 2. The document library, then stop Liferay
+
+        - name: Send the document library to Liferay's pod
+          kubernetes.core.k8s_cp:
+            namespace: "{{ restore_namespace }}"
+            pod: "{{ liferay_pod }}"
+            container: "{{ liferay_container }}"
+            remote_path: "{{ remote_documents }}"
+            local_path: "{{ backup }}/document_library.tgz"
+            state: to_pod
+
+        - name: Replace the document library with it
+          kubernetes.core.k8s_exec:
+            namespace: "{{ restore_namespace }}"
+            pod: "{{ liferay_pod }}"
+            container: "{{ liferay_container }}"
+            command: "bash -c {{ ('rm -rf /opt/liferay/data/document_library && tar --directory /opt/liferay/data --extract --gzip --file ' ~ remote_documents ~ ' && rm ' ~ remote_documents ~ ' && find /opt/liferay/data/document_library -type f | wc -l') | quote }}"
+          register: documents
+
+        - name: Stop Liferay
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            replicas: 0
+            wait_timeout: 300
+
+        - name: Wait until its pod is gone
+          kubernetes.core.k8s_info:
+            kind: Pod
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_pod }}"
+          register: gone
+          until: gone.resources | length == 0
+          retries: 60
+          delay: 5
+
+        # 3. The database
+
+        - name: Send the dump to PostgreSQL
+          kubernetes.core.k8s_cp:
+            namespace: "{{ restore_namespace }}"
+            pod: "{{ database_pod }}"
+            remote_path: "{{ remote_dump }}"
+            local_path: "{{ backup }}/lportal.dump"
+            state: to_pod
+
+        - name: Replace the database with it
+          kubernetes.core.k8s_exec:
+            namespace: "{{ restore_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ ('dropdb --username \"$POSTGRES_USER\" --if-exists \"$POSTGRES_DB\" && createdb --username \"$POSTGRES_USER\" \"$POSTGRES_DB\" && pg_restore --username \"$POSTGRES_USER\" --dbname \"$POSTGRES_DB\" --no-owner --exit-on-error ' ~ remote_dump ~ ' && rm ' ~ remote_dump) | quote }}"
+
+        # 4. Start Liferay on it
+
+        - name: Start Liferay
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            replicas: 1
+            wait_timeout: 1800
+
+        # 5. Is it the site that was backed up?
+
+        - name: Count the restored rows
+          kubernetes.core.k8s_exec:
+            namespace: "{{ restore_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ (psql ~ ' --dbname \"$POSTGRES_DB\" --command \"' ~ count_sql ~ '\"') | quote }}"
+          register: counted
+          changed_when: false
+
+        - name: Keep the counts
+          ansible.builtin.set_fact:
+            restored_counts: "{{ dict(counted.stdout_lines | map('split', '=') | map('map', 'trim')) }}"
+
+        - name: Stop unless the database holds what the backup held
+          ansible.builtin.assert:
+            that: restored_counts[item.key] | default(-1) | int == item.value | int
+            fail_msg: "{{ item.key }}: backup {{ item.value }}, restored {{ restored_counts[item.key] | default('missing') }}."
+            quiet: true
+          loop: "{{ summary.restore_test.live | dict2items }}"
+          loop_control:
+            label: "{{ item.key }}"
+
+        - name: Stop unless every document came back
+          ansible.builtin.assert:
+            that: documents.stdout_lines[-1] | int == summary.document_library.files | int
+            fail_msg: "Document library: backup {{ summary.document_library.files }} files, restored {{ documents.stdout_lines[-1] }}."
+
+        - name: Ask the restored Liferay for the pages
+          ansible.builtin.uri:
+            url: "{{ site_url }}{{ item.path }}"
+            headers:
+              Host: "{{ site_host }}"
+              X-Forwarded-Proto: https
+            return_content: true
+            status_code: 200
+            timeout: 120
+          loop: "{{ site_checks }}"
+          loop_control:
+            label: "{{ item.path }}"
+          register: pages
+
+        - name: Stop unless they are the right pages
+          ansible.builtin.assert:
+            that: item.content is search('<title>[^<]*' ~ (item.item.title | regex_escape) ~ '[^<]*</title>')
+            fail_msg: "{{ item.item.path }} answered, but its title does not contain '{{ item.item.title }}'."
+            quiet: true
+          loop: "{{ pages.results }}"
+          loop_control:
+            label: "{{ item.item.path }}"
+
+        # The home page lists the lessons from the search index, which a
+        # restore leaves stale. The rehearsal copy reindexes on every start
+        # (LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP); wait for that to show.
+        - name: Wait for the rebuilt search index to list the lessons
+          ansible.builtin.uri:
+            url: "{{ site_url }}/"
+            headers:
+              Host: "{{ site_host }}"
+              X-Forwarded-Proto: https
+            return_content: true
+            timeout: 120
+          register: home
+          until: home.content | default('') | regex_findall('href="[^"]*/b/[a-z0-9-]+') | unique | length >= summary.restore_test.live.blogsentry | int
+          retries: 45
+          delay: 20
+
+        - name: Keep the result
+          ansible.builtin.set_fact:
+            result:
+              result: passed
+              backup: "{{ backup | basename }}"
+              restored_into: "{{ restore_namespace }}"
+              started: "{{ started_at }}"
+              seconds: "{{ now(utc=true, fmt='%s') | int - started | int }}"
+              counts: "{{ restored_counts }}"
+              documents: "{{ documents.stdout_lines[-1] | int }}"
+              pages: "{{ site_checks | map(attribute='path') | list }}"
+              lessons_listed: "{{ home.content | regex_findall('href=\"[^\"]*/b/[a-z0-9-]+') | unique | length }}"
+
+      rescue:
+        - name: Keep the failure
+          ansible.builtin.set_fact:
+            result:
+              result: failed
+              backup: "{{ backup | basename }}"
+              restored_into: "{{ restore_namespace }}"
+              started: "{{ started_at }}"
+              failed_task: "{{ ansible_failed_task.name | default('') }}"
+
+      always:
+        - name: Stop the rehearsal copy
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ item }}"
+            replicas: 0
+            wait: false
+          loop:
+            - "{{ liferay_statefulset }}"
+            - "{{ search_statefulset }}"
+            - "{{ database_statefulset }}"
+          when: rehearsal and stop_afterwards | bool
+          failed_when: false
+
+        - name: Write the result next to the backups
+          ansible.builtin.copy:
+            dest: "{{ backup_root }}/last-restore-test.json"
+            mode: "0600"
+            content: "{{ result | to_nice_json }}"
+
+    - name: Fail the job if the restore did
+      ansible.builtin.assert:
+        that: result.result == 'passed'
+        fail_msg: "Restore of {{ result.backup }} failed at: {{ result.failed_task | default('') }}"
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          {{ result.backup }} restored into {{ restore_namespace }} in {{ result.seconds }} seconds:
+          {{ result.counts.tables }} tables, {{ result.documents }} documents,
+          {{ result.pages | length }} pages and {{ result.lessons_listed }} lessons on the home page.
