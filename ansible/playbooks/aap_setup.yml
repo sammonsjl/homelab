@@ -26,9 +26,6 @@
     schedule_rrule: DTSTART;TZID=America/Chicago:20261006T023000 RRULE:FREQ=DAILY;INTERVAL=1
     execution_environment: Default execution environment
     live_restore_job_name: Restore neokube.net (Liferay on lud)
-    restore_job_name: Test the restore of neokube.net (rehearsal copy on lud)
-    # Every Sunday at 03:30, Chicago time, after that night's backup.
-    restore_schedule_rrule: DTSTART;TZID=America/Chicago:20261011T033000 RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=SU
     job_namespace: aap
     backups_claim: liferay-lud-backups
 
@@ -130,33 +127,7 @@
         enabled: true
       tags: job
 
-    # Restores the newest backup into the rehearsal copy and checks it. The same playbook can restore
-    # over the live site, but only with extra variables this template does not set (ansible/README.md).
-    - name: Restore test job template
-      ansible.controller.job_template:
-        name: "{{ restore_job_name }}"
-        description: Newest backup restored into namespace liferay-restore, started, checked and stopped (ansible/README.md)
-        organization: "{{ organization }}"
-        project: homelab
-        playbook: ansible/playbooks/liferay_restore.yml
-        inventory: localhost
-        execution_environment: "{{ execution_environment }}"
-        credentials:
-          - lud backup service account
-        instance_groups:
-          - nas-backup
-        job_type: run
-      tags: job
-
-    - name: Restore test schedule
-      ansible.controller.schedule:
-        name: Weekly, Sunday 03:30
-        unified_job_template: "{{ restore_job_name }}"
-        rrule: "{{ restore_schedule_rrule }}"
-        enabled: true
-      tags: job
-
-    # The real thing: restores over the live site. No schedule; launched by hand, and it asks.
+    # Restores over the live site. No schedule; launched by hand, and it asks.
     - name: Restore job template
       ansible.controller.job_template:
         name: "{{ live_restore_job_name }}"

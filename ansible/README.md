@@ -5,10 +5,10 @@ Playbooks that AAP on lud (`https://aap.neokube.net`) runs against the homelab.
 | File | What |
 |---|---|
 | `playbooks/liferay_backup.yml` | Nightly backup of neokube.net (Liferay on lud), with a restore test |
-| `playbooks/liferay_restore.yml` | Restore: over the live site on demand, and into a second Liferay every week as a test |
-| `playbooks/aap_setup.yml` | The AAP objects that run them: credential, container group, inventory, project, job templates, schedules |
+| `playbooks/liferay_restore.yml` | Restore over the live site, on demand; can also restore into a second Liferay as a rehearsal |
+| `playbooks/aap_setup.yml` | The AAP objects that run them: credential, container group, inventory, project, two job templates, the nightly schedule |
 | `playbooks/templates/backup-README.md.j2` | The restore instructions written into every backup |
-| `files/lud-restore-rehearsal.yaml` | The restore test's namespace and what the `backup` service account may do in it |
+| `files/lud-restore-rehearsal.yaml` | The rehearsal copy's namespace and what the `backup` service account may do in it |
 | `files/lud-backup-access.yaml` | The cluster side: a `backup` service account limited to these jobs, and the NAS folder as a volume |
 | `collections/requirements.yml` | `kubernetes.core`, for running the backup outside AAP (AAP's execution environment has it) |
 
@@ -68,24 +68,17 @@ of any backup by hand, using the two files in `pre-restore/<stamp>/` instead of 
 Liferay's container has to be able to start for the job to reach its data volume. If it cannot start at all,
 restore by hand: each backup carries its own `README.md` with the commands.
 
-## The restore test
+## Rehearsing a restore
 
-Every Sunday at 03:30 (Chicago), and whenever you launch "Test the restore of neokube.net (rehearsal copy on
-lud)", AAP runs the same `liferay_restore.yml` against the **rehearsal copy**, so the restore job is exercised
-every week without touching the live site:
-a second Liferay in the namespace `liferay-restore`, with its own PostgreSQL and search server on lud's local
-disk, scaled to 0 between tests.
+`liferay_restore.yml` without `restore_namespace` restores into a **rehearsal copy** instead of the live site: a
+second Liferay in the namespace `liferay-restore`, with its own PostgreSQL and search server on lud's local disk,
+scaled to 0 when not in use. The playbook starts it, restores the newest backup into it, runs the same checks,
+stops it and writes `last-restore-test.json`. AAP has no job template for this (there was one on 2026-10-05; it
+was removed in favour of the single restore template). To run it, as a cluster administrator from a laptop:
 
-1. Checks the newest backup against its `SHA256SUMS`.
-2. Starts the rehearsal copy.
-3. Replaces its document library with the backup's, stops Liferay, replaces its database with the dump, starts
-   Liferay.
-4. Checks: the content tables hold the rows the backup recorded, every document is back, the home page, a
-   lesson and Social Office answer with the right titles, and the home page lists every lesson again (which
-   needs the search index rebuilt).
-5. Stops the rehearsal copy and writes `last-restore-test.json` next to the backups.
-
-It takes about four minutes and about 4 GiB of lud's memory while it runs. The live site is not touched.
+    export KUBECONFIG=~/sno/lud/auth/kubeconfig
+    ansible-playbook playbooks/liferay_restore.yml -e backup_root=$HOME/projects/backups/liferay-lud \
+      -e site_url=...   # the rehearsal copy has no Route; port-forward its service, or run it in a pod on lud
 
 ### Making the rehearsal copy
 
