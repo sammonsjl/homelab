@@ -1,0 +1,64 @@
+# neokube.net backup {{ stamp }} (UTC)
+
+Taken from Liferay on lud by the AAP job "Back up neokube.net (Liferay on lud)".
+This copy passed its restore test: `lportal.dump` was restored into a scratch
+database and held the same rows as the live one (`summary.json`).
+
+| File | What |
+|---|---|
+| `lportal.dump` | The PostgreSQL database `lportal`, `pg_dump` custom format |
+| `document_library.tgz` | `/opt/liferay/data/document_library`: uploaded files and pictures |
+| `secrets/*.json` | The administrator and database passwords, as Kubernetes secrets |
+| `release.json` | The image this data belongs to: `{{ liferay_image }}` |
+| `SHA256SUMS` | Check with `sha256sum -c SHA256SUMS` before restoring |
+
+Not in here, on purpose: the search index (a reindex rebuilds it), and the
+image, chart values and site sources (in git; `deploy/lud` in the Liferay
+workspace rebuilds them).
+
+## Restoring
+
+Commands are for a shell with `oc` pointed at the cluster, in this folder.
+
+0. Check the files: `sha256sum -c SHA256SUMS`
+
+1. **Only if the `liferay` namespace is gone:** put the secrets back first, then
+   deploy the image named in `release.json` with `deploy/lud/deploy.sh <tag>`
+   and wait for Liferay to start on its empty database.
+
+       oc create namespace liferay
+       oc apply -f secrets/liferay-database.json -f secrets/liferay-default.json
+
+2. Put the document library back while Liferay's pod is up, then stop Liferay.
+
+       oc cp document_library.tgz liferay/{{ liferay_pod }}:/tmp/document_library.tgz -c {{ liferay_container }}
+       oc exec -n liferay {{ liferay_pod }} -c {{ liferay_container }} -- bash -c \
+         'rm -rf /opt/liferay/data/document_library && tar -C /opt/liferay/data -xzf /tmp/document_library.tgz && rm /tmp/document_library.tgz'
+       oc scale -n liferay statefulset/{{ liferay_statefulset }} --replicas=0
+       oc wait -n liferay --for=delete pod/{{ liferay_pod }} --timeout=5m
+
+3. Replace the database with the dump.
+
+       oc cp lportal.dump liferay/{{ database_pod }}:/tmp/lportal.dump
+       oc exec -n liferay {{ database_pod }} -- bash -c \
+         'dropdb -U "$POSTGRES_USER" --if-exists "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB" && pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error /tmp/lportal.dump && rm /tmp/lportal.dump'
+
+4. Start Liferay.
+
+       oc scale -n liferay statefulset/{{ liferay_statefulset }} --replicas=1
+       oc rollout status -n liferay statefulset/{{ liferay_statefulset }} --timeout=30m
+
+5. Sign in as the administrator (`test@liferay.com`; the password is
+   `LIFERAY_DEFAULT_PERIOD_ADMIN_PERIOD_PASSWORD` in `secrets/liferay-default.json`,
+   base64) and rebuild the search index: Control Panel > Search > Index Actions >
+   Execute for "Reindex search indexes". Until that finishes, lists and search
+   are incomplete.
+
+To look at the dump without touching the live database, restore it under
+another name instead of step 3:
+
+    oc cp lportal.dump liferay/{{ database_pod }}:/tmp/lportal.dump
+    oc exec -n liferay {{ database_pod }} -- bash -c \
+      'createdb -U "$POSTGRES_USER" restore_check && pg_restore -U "$POSTGRES_USER" -d restore_check --no-owner --exit-on-error /tmp/lportal.dump'
+    # ... look around with psql -U "$POSTGRES_USER" -d restore_check, then:
+    oc exec -n liferay {{ database_pod }} -- bash -c 'dropdb -U "$POSTGRES_USER" restore_check; rm /tmp/lportal.dump'

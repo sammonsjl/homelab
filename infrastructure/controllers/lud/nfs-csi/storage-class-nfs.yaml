@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-csi
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.1.4
+  # The NAS exports no share of lud's own; it uses a folder of yojimbo's.
+  share: /volume1/k8s-nfs-yojimbo
+  subDir: lud/${pvc.metadata.namespace}-${pvc.metadata.name}
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+mountOptions:
+  - hard
+  - nfsvers=4.1

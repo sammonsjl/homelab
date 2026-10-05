@@ -1,0 +1,450 @@
+---
+# Nightly backup of neokube.net (Liferay on lud), with a restore test.
+#
+# Runs on localhost -- in AAP that is the job pod -- and reaches the cluster
+# through kubernetes.core, with whatever credentials it is given (the AAP
+# credential's K8S_AUTH_* variables, or KUBECONFIG on a laptop).
+#
+# A backup is written to .incoming-<stamp> and only renamed to <stamp>, and
+# "latest" only moved, after every check has passed. See ../README.md.
+- name: Back up neokube.net (Liferay on lud)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    backup_root: /backups
+    backup_keep: 14
+
+    liferay_namespace: liferay
+    liferay_pod: liferay-default-0
+    liferay_container: liferay-default
+    liferay_statefulset: liferay-default
+    database_pod: liferay-default-database-0
+    search_pod: liferay-default-search-0
+    backup_secrets:
+      - liferay-default
+      - liferay-database
+
+    # The restore test compares these between the live database and the
+    # restored copy. They hold the content; none is written to by a visitor
+    # reading the site, so they do not move during the minute a backup takes.
+    count_tables:
+      - user_
+      - group_
+      - layout
+      - blogsentry
+      - dlfileentry
+      - journalarticle
+      - objectdefinition
+      - objectentry
+      - fragmententry
+      - expandovalue
+
+    # Asked of Liferay's own service, with the public host name: from inside
+    # the cluster, https://neokube.net is Cloudflare, not Liferay.
+    site_url: http://liferay-default.liferay.svc:8080
+    site_host: neokube.net
+    site_checks:
+      - path: /
+        title: NeoKube
+      - path: /b/ace-lab-01-prerequisites
+        title: Prerequisites
+
+    # Only for proving that the restore test can fail: added to the live
+    # counts before they are compared. Leave at 0.
+    restore_check_offset: 0
+
+    psql: psql --username "$POSTGRES_USER" --no-align --tuples-only --field-separator "="
+
+  tasks:
+    - name: Name this backup
+      ansible.builtin.set_fact:
+        stamp: "{{ now(utc=true, fmt='%Y-%m-%d-%H%M') }}"
+        started: "{{ now(utc=true, fmt='%s') | int }}"
+        started_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Set the paths
+      ansible.builtin.set_fact:
+        incoming: "{{ backup_root }}/.incoming-{{ stamp }}"
+        final: "{{ backup_root }}/{{ stamp }}"
+        scratch_database: "restoretest_{{ stamp | replace('-', '_') }}"
+        remote_dump: "/tmp/backup-{{ stamp }}.dump"
+        remote_restore: "/tmp/restore-{{ stamp }}.dump"
+        remote_documents: "/tmp/backup-{{ stamp }}-document_library.tgz"
+        count_sql: >-
+          select 'tables', count(*) from information_schema.tables where table_schema = current_schema()
+          {% for table in count_tables %}
+          union all select '{{ table }}', count(*) from {{ table }}
+          {% endfor %}
+
+    # 1. Preflight
+
+    - name: The backup folder is there
+      ansible.builtin.stat:
+        path: "{{ backup_root }}"
+      register: root
+
+    - name: Stop if it is not
+      ansible.builtin.assert:
+        that: root.stat.exists and root.stat.isdir
+        fail_msg: "{{ backup_root }} is not a folder. Is the NAS volume mounted in the job pod?"
+
+    - name: Nothing has been written under this name yet
+      ansible.builtin.stat:
+        path: "{{ final }}"
+      register: existing
+
+    - name: Stop if it has
+      ansible.builtin.assert:
+        that: not existing.stat.exists
+        fail_msg: "{{ final }} already exists. Backups are named to the minute; wait a minute."
+
+    - name: Clear what earlier failed runs left behind
+      ansible.builtin.find:
+        paths: "{{ backup_root }}"
+        patterns: ".incoming-*"
+        file_type: directory
+        hidden: true
+      register: leftovers
+
+    - name: Remove it
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ leftovers.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Make the folder for this backup (which proves the NAS is writable)
+      ansible.builtin.file:
+        path: "{{ incoming }}/secrets"
+        state: directory
+        mode: "0700"
+
+    - name: Read the three pods
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ liferay_namespace }}"
+        name: "{{ item }}"
+      loop:
+        - "{{ liferay_pod }}"
+        - "{{ database_pod }}"
+        - "{{ search_pod }}"
+      register: pods
+
+    - name: Stop unless all three are ready
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | first == 'True'
+        fail_msg: "Pod {{ item.item }} is missing or not ready."
+        quiet: true
+      loop: "{{ pods.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Back up, test the restore, and only then publish
+      block:
+        # 2. What the live database holds
+
+        - name: Count the live rows
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ (psql ~ ' --dbname \"$POSTGRES_DB\" --command \"' ~ count_sql ~ '\"') | quote }}"
+          register: live_out
+          changed_when: false
+
+        - name: Keep the live counts
+          ansible.builtin.set_fact:
+            live_counts: "{{ dict(live_out.stdout_lines | map('split', '=') | map('map', 'trim')) }}"
+
+        # 3. The database
+
+        - name: Dump the database
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ ('pg_dump --username \"$POSTGRES_USER\" --format custom --file ' ~ remote_dump ~ ' \"$POSTGRES_DB\" && sha256sum ' ~ remote_dump) | quote }}"
+          register: dumped
+
+        - name: Copy the dump to the NAS
+          kubernetes.core.k8s_cp:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            remote_path: "{{ remote_dump }}"
+            local_path: "{{ incoming }}/lportal.dump"
+            state: from_pod
+
+        - name: Keep the dump to its owner
+          ansible.builtin.file:
+            path: "{{ incoming }}/lportal.dump"
+            mode: "0600"
+
+        - name: Read the copy back
+          ansible.builtin.stat:
+            path: "{{ incoming }}/lportal.dump"
+            checksum_algorithm: sha256
+          register: dump_file
+
+        - name: Stop unless the copy is the dump
+          ansible.builtin.assert:
+            that:
+              - dump_file.stat.size > 0
+              - dump_file.stat.checksum == dumped.stdout.split()[0]
+            fail_msg: The dump on the NAS is not the dump PostgreSQL wrote.
+
+        # 4. The document library
+
+        - name: Archive the document library
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ liferay_pod }}"
+            container: "{{ liferay_container }}"
+            command: "bash -c {{ ('tar --directory /opt/liferay/data --create --gzip --file ' ~ remote_documents ~ ' document_library && sha256sum ' ~ remote_documents ~ ' && find /opt/liferay/data/document_library -type f | wc -l') | quote }}"
+          register: archived
+
+        - name: Copy the archive to the NAS
+          kubernetes.core.k8s_cp:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ liferay_pod }}"
+            container: "{{ liferay_container }}"
+            remote_path: "{{ remote_documents }}"
+            local_path: "{{ incoming }}/document_library.tgz"
+            state: from_pod
+
+        - name: Keep the archive to its owner
+          ansible.builtin.file:
+            path: "{{ incoming }}/document_library.tgz"
+            mode: "0600"
+
+        - name: Read the copy back
+          ansible.builtin.stat:
+            path: "{{ incoming }}/document_library.tgz"
+            checksum_algorithm: sha256
+          register: documents_file
+
+        - name: List what is in it
+          ansible.builtin.command:
+            cmd: tar --list --gzip --file {{ incoming }}/document_library.tgz
+          register: documents_list
+          changed_when: false
+
+        - name: Stop unless the copy is the archive, with every file in it
+          ansible.builtin.assert:
+            that:
+              - documents_file.stat.checksum == archived.stdout_lines[0].split()[0]
+              - documents_list.stdout_lines | reject('match', '.*/$') | list | length == archived.stdout_lines[1] | int
+            fail_msg: The document library archive on the NAS is not the one Liferay's pod wrote.
+
+        # 5. The secrets and a record of what was running
+
+        - name: Read the secrets a restore needs
+          kubernetes.core.k8s_info:
+            kind: Secret
+            namespace: "{{ liferay_namespace }}"
+            name: "{{ item }}"
+          loop: "{{ backup_secrets }}"
+          register: secrets
+          no_log: true
+
+        - name: Stop unless both were read
+          ansible.builtin.assert:
+            that: item.resources | length == 1
+            fail_msg: "Secret {{ item.item }} could not be read."
+            quiet: true
+          loop: "{{ secrets.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          no_log: true
+
+        - name: Write them
+          ansible.builtin.copy:
+            dest: "{{ incoming }}/secrets/{{ item.item }}.json"
+            mode: "0600"
+            content: >-
+              {{ {'apiVersion': 'v1', 'kind': 'Secret', 'type': item.resources[0].type,
+                  'metadata': {'name': item.item, 'namespace': liferay_namespace},
+                  'data': item.resources[0].data} | to_nice_json }}
+          loop: "{{ secrets.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+          no_log: true
+
+        - name: Read the release
+          kubernetes.core.k8s_info:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ liferay_namespace }}"
+            name: "{{ liferay_statefulset }}"
+          register: release
+
+        - name: Keep the image the data belongs to
+          ansible.builtin.set_fact:
+            liferay_image: >-
+              {{ (release.resources[0].spec.template.spec.containers
+                  | selectattr('name', 'equalto', liferay_container) | first).image }}
+
+        - name: Write the record of the release
+          ansible.builtin.copy:
+            dest: "{{ incoming }}/release.json"
+            mode: "0600"
+            content: >-
+              {{ {'image': liferay_image,
+                  'chart': release.resources[0].metadata.labels['helm.sh/chart'] | default(''),
+                  'statefulset_generation': release.resources[0].metadata.generation,
+                  'pods': pods.results | map(attribute='resources') | map('first')
+                          | map(attribute='metadata.name') | list,
+                  'images': pods.results | map(attribute='resources') | map('first')
+                            | map(attribute='spec.containers') | flatten
+                            | map(attribute='image') | unique | list} | to_nice_json }}
+
+        # 6. The restore test: the file on the NAS, restored into a scratch database
+
+        - name: Send the dump on the NAS back to PostgreSQL
+          kubernetes.core.k8s_cp:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            remote_path: "{{ remote_restore }}"
+            local_path: "{{ incoming }}/lportal.dump"
+            state: to_pod
+
+        - name: Restore it into a scratch database
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ ('createdb --username \"$POSTGRES_USER\" ' ~ scratch_database ~ ' && pg_restore --username \"$POSTGRES_USER\" --dbname ' ~ scratch_database ~ ' --no-owner --exit-on-error ' ~ remote_restore) | quote }}"
+
+        - name: Count the restored rows
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ database_pod }}"
+            command: "bash -c {{ (psql ~ ' --dbname ' ~ scratch_database ~ ' --command \"' ~ count_sql ~ '\"') | quote }}"
+          register: restored_out
+          changed_when: false
+
+        - name: Keep the restored counts
+          ansible.builtin.set_fact:
+            restored_counts: "{{ dict(restored_out.stdout_lines | map('split', '=') | map('map', 'trim')) }}"
+
+        - name: Stop unless the restored copy holds what the live database held
+          ansible.builtin.assert:
+            that:
+              - restored_counts | length == count_tables | length + 1
+              - restored_counts[item] | int == live_counts[item] | int + restore_check_offset | int
+            fail_msg: >-
+              {{ item }}: live {{ live_counts[item] }}, restored {{ restored_counts[item] | default('missing') }}.
+              The dump does not restore to what was dumped.
+            quiet: true
+          loop: "{{ live_counts.keys() | list }}"
+
+        # 7. The site still answers
+
+        - name: Ask Liferay for the pages
+          ansible.builtin.uri:
+            url: "{{ site_url }}{{ item.path }}"
+            headers:
+              Host: "{{ site_host }}"
+              X-Forwarded-Proto: https
+            return_content: true
+            status_code: 200
+            timeout: 60
+          loop: "{{ site_checks }}"
+          loop_control:
+            label: "{{ item.path }}"
+          register: pages
+
+        - name: Stop unless they are the right pages
+          ansible.builtin.assert:
+            that: item.content is search('<title>[^<]*' ~ (item.item.title | regex_escape) ~ '[^<]*</title>')
+            fail_msg: "{{ item.item.path }} answered, but its title does not contain '{{ item.item.title }}'."
+            quiet: true
+          loop: "{{ pages.results }}"
+          loop_control:
+            label: "{{ item.item.path }}"
+
+        # 8. Publish
+
+        - name: Write the summary
+          ansible.builtin.copy:
+            dest: "{{ incoming }}/summary.json"
+            mode: "0600"
+            content: >-
+              {{ {'backup': stamp, 'started': started_at,
+                  'seconds': now(utc=true, fmt='%s') | int - started | int,
+                  'image': liferay_image,
+                  'database': {'file': 'lportal.dump', 'bytes': dump_file.stat.size,
+                               'sha256': dump_file.stat.checksum},
+                  'document_library': {'file': 'document_library.tgz', 'bytes': documents_file.stat.size,
+                                       'sha256': documents_file.stat.checksum,
+                                       'files': archived.stdout_lines[1] | int},
+                  'secrets': backup_secrets,
+                  'restore_test': {'result': 'passed', 'live': live_counts, 'restored': restored_counts},
+                  'site_check': site_checks | map(attribute='path') | list} | to_nice_json }}
+
+        - name: Write how to restore it
+          ansible.builtin.template:
+            src: backup-README.md.j2
+            dest: "{{ incoming }}/README.md"
+            mode: "0600"
+
+        - name: Write the checksums
+          ansible.builtin.shell:
+            cmd: find . -type f ! -name SHA256SUMS | sort | xargs sha256sum > SHA256SUMS
+            chdir: "{{ incoming }}"
+          changed_when: true
+
+        - name: Publish the backup
+          ansible.builtin.command:
+            cmd: mv {{ incoming }} {{ final }}
+            creates: "{{ final }}"
+
+        - name: Point latest at it
+          ansible.builtin.file:
+            path: "{{ backup_root }}/latest"
+            src: "{{ stamp }}"
+            state: link
+            follow: false
+
+      always:
+        - name: Remove the scratch database and the temporary files
+          kubernetes.core.k8s_exec:
+            namespace: "{{ liferay_namespace }}"
+            pod: "{{ item.pod }}"
+            container: "{{ item.container | default(omit) }}"
+            command: "bash -c {{ item.command | quote }}"
+          loop:
+            - pod: "{{ database_pod }}"
+              command: "dropdb --username \"$POSTGRES_USER\" --if-exists {{ scratch_database }}; rm -f {{ remote_dump }} {{ remote_restore }}"
+            - pod: "{{ liferay_pod }}"
+              container: "{{ liferay_container }}"
+              command: "rm -f {{ remote_documents }}"
+          loop_control:
+            label: "{{ item.pod }}"
+          failed_when: false
+          changed_when: false
+
+    # 9. Keep the newest backup_keep
+
+    - name: List the backups
+      ansible.builtin.find:
+        paths: "{{ backup_root }}"
+        patterns: '^\d{4}-\d{2}-\d{2}-\d{4}$'
+        use_regex: true
+        file_type: directory
+      register: backups
+
+    - name: Remove all but the newest {{ backup_keep }}
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ (backups.files | map(attribute='path') | sort)[:-(backup_keep | int)] }}"
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: >-
+          {{ final }}: database {{ dump_file.stat.size }} bytes,
+          document library {{ documents_file.stat.size }} bytes in {{ archived.stdout_lines[1] }} files,
+          restore test passed on {{ live_counts.tables }} tables,
+          {{ [backups.files | length, backup_keep | int] | min }} backups kept.

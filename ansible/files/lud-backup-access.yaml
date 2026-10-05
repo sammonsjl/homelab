@@ -1,0 +1,92 @@
+# What the nightly backup of neokube.net (Liferay on lud) needs in the cluster.
+#   oc apply -f ansible/files/lud-backup-access.yaml
+#
+# 1. An identity that can do the backup and nothing else: read pods and
+#    statefulsets in the liferay namespace, run commands in its pods, and read
+#    the two secrets a restore needs.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup
+  namespace: liferay
+---
+# A token that does not expire, for the AAP credential.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-token
+  namespace: liferay
+  annotations:
+    kubernetes.io/service-account.name: backup
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup
+  namespace: liferay
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list]
+  # Running commands in a pod (pg_dump, tar) and copying the result out.
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create, get]
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [liferay-default, liferay-database]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup
+  namespace: liferay
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup
+subjects:
+  - kind: ServiceAccount
+    name: backup
+    namespace: liferay
+---
+# 2. Where the backups go: a folder on the NAS, next to the Ghost backups
+#    (~/projects/backups/liferay-lud on the laptop). A plain NFS volume; the job
+#    pod in the aap namespace mounts it at /backups.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: liferay-lud-backups
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    namespace: aap
+    name: liferay-lud-backups
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    server: 192.168.1.4
+    path: /volume1/homes/jamie/projects/backups/liferay-lud
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: liferay-lud-backups
+  namespace: aap
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: liferay-lud-backups
+  resources:
+    requests:
+      storage: 20Gi

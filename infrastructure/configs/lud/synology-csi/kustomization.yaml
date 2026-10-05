@@ -1,0 +1,43 @@
+# lud is single-node OpenShift on RHCOS, not Talos, and has no Flux and no
+# External Secrets operator. Apply by hand:
+#   oc apply -k infrastructure/configs/lud/synology-csi
+# after creating client-info-secret from Vault (secrets/synology, key
+# client-info.yml) and enabling iscsid on the node with a MachineConfig.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base/synology-csi/
+  - scc.yaml
+patches:
+  # No External Secrets operator on lud: the secret is created by hand.
+  - target:
+      kind: ExternalSecret
+      name: client-info-secret
+    patch: |
+      $patch: delete
+      apiVersion: external-secrets.io/v1
+      kind: ExternalSecret
+      metadata:
+        name: client-info-secret
+        namespace: synology-csi
+  # RHCOS has iscsiadm on the host, at the same version as the host's iscsid
+  # (open-iscsi 2.1.11). The iscsiadm inside the image is built for Talos's
+  # 2.1.13 and must not talk to an older iscsid: the IPC has no version check
+  # and a mismatch wedges the daemon. So the driver chroots into the host and
+  # runs the host's tools, as upstream intends.
+  - target:
+      kind: DaemonSet
+      name: synology-csi-node
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/1/args/1
+        value: --chroot-dir=/host
+  # The only storage on lud that outlives the node, so it is the default.
+  - target:
+      kind: StorageClass
+      name: synology-iscsi
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          storageclass.kubernetes.io/is-default-class: "true"

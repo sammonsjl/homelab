@@ -1,0 +1,8 @@
+# lud has no Flux, so the HelmRelease in ../../base/nfs-csi is not used there.
+# The same chart and version are installed with Helm (see ansible/README.md),
+# and this adds lud's storage class:
+#   oc apply -k infrastructure/controllers/lud/nfs-csi
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - storage-class-nfs.yaml

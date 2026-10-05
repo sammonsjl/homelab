@@ -1,0 +1,125 @@
+---
+# AAP's side of the neokube.net backup, as code: run it again to put any of
+# these objects back.
+#
+# Needs the ansible.controller collection, which AAP's execution environments
+# carry; ../README.md shows how to run it in one. Give it:
+#
+#   CONTROLLER_HOST, CONTROLLER_USERNAME, CONTROLLER_PASSWORD   where AAP is, and an administrator
+#   LUD_BACKUP_TOKEN, LUD_BACKUP_CA                             the backup service account's token and
+#                                                               the cluster's CA certificate (secret
+#                                                               backup-token in the liferay namespace)
+#
+# Tags: "base" is everything that does not need this repository to be on
+# GitHub (credential, container group, inventory); "job" is the rest.
+- name: Set up the neokube.net backup in AAP
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    organization: Default
+    homelab_repository: https://github.com/sammonsjl/homelab.git
+    homelab_branch: main
+    job_name: Back up neokube.net (Liferay on lud)
+    # Every night at 02:30, Chicago time.
+    schedule_rrule: DTSTART;TZID=America/Chicago:20261006T023000 RRULE:FREQ=DAILY;INTERVAL=1
+    execution_environment: Default execution environment
+    job_namespace: aap
+    backups_claim: liferay-lud-backups
+
+  tasks:
+    - name: Credential for lud, limited to what the backup needs
+      ansible.controller.credential:
+        name: lud backup service account
+        description: Service account backup in the liferay namespace (ansible/files/lud-backup-access.yaml)
+        organization: "{{ organization }}"
+        credential_type: OpenShift or Kubernetes API Bearer Token
+        inputs:
+          host: https://kubernetes.default.svc
+          bearer_token: "{{ lookup('ansible.builtin.env', 'LUD_BACKUP_TOKEN') }}"
+          verify_ssl: true
+          ssl_ca_cert: "{{ lookup('ansible.builtin.env', 'LUD_BACKUP_CA') }}"
+      no_log: true
+      tags: base
+
+    # The default job pod, plus the NAS folder at /backups.
+    - name: Container group whose job pods mount the NAS
+      ansible.controller.instance_group:
+        name: nas-backup
+        is_container_group: true
+        pod_spec_override: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            namespace: {{ job_namespace }}
+          spec:
+            serviceAccountName: default
+            automountServiceAccountToken: false
+            containers:
+              - name: worker
+                args: [ansible-runner, worker, --private-data-dir=/runner]
+                resources:
+                  requests:
+                    cpu: 250m
+                    memory: 100Mi
+                volumeMounts:
+                  - name: backups
+                    mountPath: /backups
+            volumes:
+              - name: backups
+                persistentVolumeClaim:
+                  claimName: {{ backups_claim }}
+      tags: base
+
+    - name: Inventory with only the job pod in it
+      ansible.controller.inventory:
+        name: localhost
+        description: The job pod itself; playbooks reach clusters through their APIs
+        organization: "{{ organization }}"
+      tags: base
+
+    - name: Its one host
+      ansible.controller.host:
+        name: localhost
+        inventory: localhost
+        variables:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ '{{ ansible_playbook_python }}' }}"
+      tags: base
+
+    - name: Project
+      ansible.controller.project:
+        name: homelab
+        description: github.com/sammonsjl/homelab
+        organization: "{{ organization }}"
+        scm_type: git
+        scm_url: "{{ homelab_repository }}"
+        scm_branch: "{{ homelab_branch }}"
+        scm_update_on_launch: true
+        wait: true
+      tags: job
+
+    - name: Job template
+      ansible.controller.job_template:
+        name: "{{ job_name }}"
+        description: pg_dump, document library and secrets to the NAS, with a restore test (ansible/README.md)
+        organization: "{{ organization }}"
+        project: homelab
+        playbook: ansible/playbooks/liferay_backup.yml
+        inventory: localhost
+        execution_environment: "{{ execution_environment }}"
+        credentials:
+          - lud backup service account
+        instance_groups:
+          - nas-backup
+        job_type: run
+      tags: job
+
+    - name: Schedule
+      ansible.controller.schedule:
+        name: Nightly at 02:30
+        unified_job_template: "{{ job_name }}"
+        rrule: "{{ schedule_rrule }}"
+        enabled: true
+      tags: job
