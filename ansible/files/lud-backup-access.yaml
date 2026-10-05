@@ -61,38 +61,18 @@ subjects:
     name: backup
     namespace: liferay
 ---
-# 2. Where the backups go: a folder on the NAS, next to the Ghost backups
-#    (~/projects/backups/liferay-lud on the laptop). A plain NFS volume; the job
-#    pod in the aap namespace mounts it at /backups.
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: liferay-lud-backups
-spec:
-  capacity:
-    storage: 20Gi
-  accessModes: [ReadWriteMany]
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
-  claimRef:
-    namespace: aap
-    name: liferay-lud-backups
-  mountOptions:
-    - hard
-    - nfsvers=4.1
-  nfs:
-    server: 192.168.1.4
-    path: /volume1/homes/jamie/projects/backups/liferay-lud
----
+# 2. Where the backups go: their own NFS volume on the NAS, made by nfs-csi:
+#    192.168.1.4:/volume1/k8s-nfs-yojimbo/lud/aap-neokube-backups
+#    The job pods in the aap namespace mount it at /backups. The class keeps
+#    the folder if this claim is ever deleted (Retain).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: liferay-lud-backups
+  name: neokube-backups
   namespace: aap
 spec:
   accessModes: [ReadWriteMany]
-  storageClassName: ""
-  volumeName: liferay-lud-backups
+  storageClassName: nfs-csi
   resources:
     requests:
       storage: 20Gi

@@ -27,7 +27,7 @@
     execution_environment: Default execution environment
     live_restore_job_name: Restore neokube.net (Liferay on lud)
     job_namespace: aap
-    backups_claim: liferay-lud-backups
+    backups_claim: neokube-backups
 
   tasks:
     - name: Credential for lud, limited to what the backup needs
@@ -151,7 +151,7 @@
           spec:
             - question_name: Backup to restore
               question_description: >-
-                A folder name under ~/projects/backups/liferay-lud on the NAS, such as 2026-10-05-1636
+                A folder name on the backup volume (k8s-nfs-yojimbo/lud/aap-neokube-backups on the NAS), such as 2026-10-05-1636
                 (UTC), or "latest" for the newest.
               variable: backup_name
               type: text

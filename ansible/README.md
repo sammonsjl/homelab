@@ -16,8 +16,9 @@ Playbooks that AAP on lud (`https://aap.neokube.net`) runs against the homelab.
 
 Every night at 02:30 (Chicago) AAP runs `liferay_backup.yml` in a job pod on lud
 that has the NAS folder mounted at `/backups`
-(`192.168.1.4:/volume1/homes/jamie/projects/backups/liferay-lud`, which is
-`~/projects/backups/liferay-lud` on the laptop).
+(the claim `neokube-backups`, an `nfs-csi` volume of its own on the NAS:
+`192.168.1.4:/volume1/k8s-nfs-yojimbo/lud/aap-neokube-backups`; in DSM's File Station,
+`k8s-nfs-yojimbo/lud/aap-neokube-backups`). Nothing is kept on the laptop or in a home folder.
 
 1. Checks the folder is writable and Liferay's three pods are ready.
 2. Counts the rows of the content tables in the live database.
@@ -47,7 +48,7 @@ namespace; it has none outside these two.
 
 In AAP: launch **"Restore neokube.net (Liferay on lud)"**. It asks two things:
 
-- **Backup to restore:** a folder name under `~/projects/backups/liferay-lud` (UTC, such as `2026-10-05-1636`),
+- **Backup to restore:** a folder name on the backup volume (UTC, such as `2026-10-05-1636`),
   or `latest`.
 - **Type neokube.net to confirm.** Anything else and the job stops before touching the site.
 
@@ -77,7 +78,7 @@ stops it and writes `last-restore-test.json`. AAP has no job template for this (
 was removed in favour of the single restore template). To run it, as a cluster administrator from a laptop:
 
     export KUBECONFIG=~/sno/lud/auth/kubeconfig
-    ansible-playbook playbooks/liferay_restore.yml -e backup_root=$HOME/projects/backups/liferay-lud \
+    ansible-playbook playbooks/liferay_restore.yml -e backup_root=<the backup volume, mounted> \
       -e site_url=...   # the rehearsal copy has no Route; port-forward its service, or run it in a pod on lud
 
 ### Making the rehearsal copy
@@ -86,7 +87,7 @@ Once (it is there since 2026-10-05). From the Liferay workspace, with the secret
 
     oc apply -f files/lud-restore-rehearsal.yaml
     for s in liferay-database liferay-default; do
-      sed 's/"namespace": "liferay"/"namespace": "liferay-restore"/' ~/projects/backups/liferay-lud/latest/secrets/$s.json | oc apply -f -
+      sed 's/"namespace": "liferay"/"namespace": "liferay-restore"/' <the backup volume>/latest/secrets/$s.json | oc apply -f -
     done
     oc adm policy add-scc-to-user nonroot-v2 --serviceaccount liferay-default --namespace liferay-restore
     oc policy add-role-to-group system:image-puller system:serviceaccounts:liferay-restore --namespace liferay
@@ -107,7 +108,7 @@ From a laptop with `ansible-core`, the `kubernetes` Python package and this fold
 
     export KUBECONFIG=~/sno/lud/auth/kubeconfig
     ansible-playbook playbooks/liferay_backup.yml \
-      -e backup_root=$HOME/projects/backups/liferay-lud -e site_url=https://neokube.net
+      -e backup_root=<the backup volume, mounted> -e site_url=https://neokube.net
 
 To see the restore test fail on purpose: add `-e restore_check_offset=1`.
 
