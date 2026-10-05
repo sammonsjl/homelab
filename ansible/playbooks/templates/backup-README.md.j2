@@ -18,6 +18,10 @@ workspace rebuilds them).
 
 ## Restoring
 
+**The usual way:** in AAP, launch "Restore neokube.net (Liferay on lud)" and give it this folder's name,
+`{{ stamp }}`. It does the steps below, saves what the site held before, rebuilds the search index and checks
+the result. The steps are here for when AAP is not there or Liferay cannot start.
+
 Commands are for a shell with `oc` pointed at the cluster, in this folder.
 
 0. Check the files: `sha256sum -c SHA256SUMS`
@@ -57,10 +61,6 @@ Commands are for a shell with `oc` pointed at the cluster, in this folder.
        oc rollout status -n liferay statefulset/{{ liferay_statefulset }} --timeout=30m
        # when the home page lists the lessons again, take it back off (one more restart):
        oc set env -n liferay statefulset/{{ liferay_statefulset }} -c {{ liferay_container }} LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP-
-
-These are the steps the AAP job "Test the restore of neokube.net (rehearsal copy on lud)" runs every week
-against a second Liferay in the namespace `liferay-restore`; its last result is in
-`../last-restore-test.json`.
 
 To look at the dump without touching the live database, restore it under
 another name instead of step 3:

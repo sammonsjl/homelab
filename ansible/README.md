@@ -5,11 +5,11 @@ Playbooks that AAP on lud (`https://aap.neokube.net`) runs against the homelab.
 | File | What |
 |---|---|
 | `playbooks/liferay_backup.yml` | Nightly backup of neokube.net (Liferay on lud), with a restore test |
-| `playbooks/liferay_restore.yml` | Weekly restore test: the newest backup restored into a second Liferay, started and checked |
+| `playbooks/liferay_restore.yml` | Restore: over the live site on demand, and into a second Liferay every week as a test |
 | `playbooks/aap_setup.yml` | The AAP objects that run them: credential, container group, inventory, project, job templates, schedules |
 | `playbooks/templates/backup-README.md.j2` | The restore instructions written into every backup |
 | `files/lud-restore-rehearsal.yaml` | The restore test's namespace and what the `backup` service account may do in it |
-| `files/lud-backup-access.yaml` | The cluster side: a `backup` service account limited to the job, and the NAS folder as a volume |
+| `files/lud-backup-access.yaml` | The cluster side: a `backup` service account limited to these jobs, and the NAS folder as a volume |
 | `collections/requirements.yml` | `kubernetes.core`, for running the backup outside AAP (AAP's execution environment has it) |
 
 ## The backup
@@ -37,17 +37,41 @@ half-written `.incoming-*` folder is removed by the next run.
 Not backed up: the search index (a reindex rebuilds it) and the image, chart values and site sources (in git).
 The dump and the document archive are taken seconds apart, not in one snapshot.
 
-The service account can read pods, run commands in the pods of the `liferay` namespace, and read two secrets by
-name. Running commands in a pod is a wide permission inside that namespace; it has none outside it.
+The service account works only in the `liferay` and `liferay-restore` namespaces. In `liferay` it can read pods
+and statefulsets, run commands in the pods, read two secrets by name, and (for the restore job) scale and patch
+the statefulsets. Running commands in a pod and patching a statefulset are wide permissions inside that
+namespace; it has none outside these two.
 
-### Restoring
+## Restoring neokube.net
 
-Each backup carries its own `README.md` with the commands. Start there.
+In AAP: launch **"Restore neokube.net (Liferay on lud)"**. It asks two things:
+
+- **Backup to restore:** a folder name under `~/projects/backups/liferay-lud` (UTC, such as `2026-10-05-1636`),
+  or `latest`.
+- **Type neokube.net to confirm.** Anything else and the job stops before touching the site.
+
+It then runs `liferay_restore.yml` against the live site:
+
+1. Checks the backup against its `SHA256SUMS`.
+2. **Saves what the live site holds right now** (database dump and document library) to
+   `pre-restore/<stamp>/` next to the backups; the newest three are kept. If the site is too broken to dump, it
+   says so in the result and goes on.
+3. Replaces the document library, stops Liferay, replaces the database, and starts Liferay with the search
+   index being rebuilt.
+4. Checks the rows, the documents, three pages and that the home page lists every lesson again.
+5. Takes the reindex setting off again (one more restart of Liferay) and writes `last-restore.json`.
+
+The site is down for about ten minutes. To go back to what was there before a restore, follow the `README.md`
+of any backup by hand, using the two files in `pre-restore/<stamp>/` instead of that backup's.
+
+Liferay's container has to be able to start for the job to reach its data volume. If it cannot start at all,
+restore by hand: each backup carries its own `README.md` with the commands.
 
 ## The restore test
 
 Every Sunday at 03:30 (Chicago), and whenever you launch "Test the restore of neokube.net (rehearsal copy on
-lud)", AAP runs `liferay_restore.yml`. It follows the backup's own `README.md` against the **rehearsal copy**:
+lud)", AAP runs the same `liferay_restore.yml` against the **rehearsal copy**, so the restore job is exercised
+every week without touching the live site:
 a second Liferay in the namespace `liferay-restore`, with its own PostgreSQL and search server on lud's local
 disk, scaled to 0 between tests.
 
@@ -57,14 +81,10 @@ disk, scaled to 0 between tests.
    Liferay.
 4. Checks: the content tables hold the rows the backup recorded, every document is back, the home page, a
    lesson and Social Office answer with the right titles, and the home page lists every lesson again (which
-   needs the search index rebuilt; the rehearsal copy reindexes on every start).
+   needs the search index rebuilt).
 5. Stops the rehearsal copy and writes `last-restore-test.json` next to the backups.
 
 It takes about four minutes and about 4 GiB of lud's memory while it runs. The live site is not touched.
-
-The same playbook can restore over the live site, deliberately: `-e restore_namespace=liferay
--e confirm_live_restore=neokube.net`, as a cluster administrator, because the service account may not scale the
-live statefulsets. Afterwards rebuild the search index as the backup's `README.md` says.
 
 ### Making the rehearsal copy
 
@@ -79,12 +99,10 @@ Once (it is there since 2026-10-05). From the Liferay workspace, with the secret
     sed 's/storageClassName: synology-iscsi/storageClassName: local-path/' deploy/lud/values.yaml > /tmp/values-restore.yaml
     helm upgrade --install liferay <liferay-portal>/cloud/helm/default --namespace liferay-restore \
       --values /tmp/values-restore.yaml --set image.tag=<the tag in the backup's release.json>
-    oc set env --namespace liferay-restore statefulset/liferay-default -c liferay-default \
-      LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP=true LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP_PERIOD_DELAY=10
     oc scale --namespace liferay-restore statefulset --all --replicas=0
 
 It has no Route, so it is not reachable from outside the cluster. When the live site moves to a new image,
-repeat the `helm upgrade` and `oc set env` lines with the new tag.
+repeat the `helm upgrade` line with the new tag, then the `oc scale` line.
 
 ### Running the backup by hand
 
