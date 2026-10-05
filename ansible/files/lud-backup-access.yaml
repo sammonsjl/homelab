@@ -1,9 +1,10 @@
 # What the nightly backup of neokube.net (Liferay on lud) needs in the cluster.
 #   oc apply -f ansible/files/lud-backup-access.yaml
 #
-# 1. An identity that can do the backup and nothing else: read pods and
-#    statefulsets in the liferay namespace, run commands in its pods, and read
-#    the two secrets a restore needs.
+# 1. An identity for the backup and restore jobs, limited to the liferay
+#    namespace: read pods and statefulsets, run commands in the pods, read the
+#    two secrets a restore needs, and -- for the restore job -- stop and start
+#    the statefulsets and change their settings.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -28,10 +29,15 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: [pods]
-    verbs: [get, list]
+    verbs: [get, list, watch]
+  # patch and scale are for "Restore neokube.net": it stops Liferay while the
+  # database is replaced, and has it rebuild the search index at the next start.
   - apiGroups: [apps]
     resources: [statefulsets]
-    verbs: [get, list]
+    verbs: [get, list, watch, patch]
+  - apiGroups: [apps]
+    resources: [statefulsets/scale]
+    verbs: [get, patch, update]
   # Running commands in a pod (pg_dump, tar) and copying the result out.
   - apiGroups: [""]
     resources: [pods/exec]

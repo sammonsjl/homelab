@@ -25,6 +25,7 @@
     # Every night at 02:30, Chicago time.
     schedule_rrule: DTSTART;TZID=America/Chicago:20261006T023000 RRULE:FREQ=DAILY;INTERVAL=1
     execution_environment: Default execution environment
+    live_restore_job_name: Restore neokube.net (Liferay on lud)
     restore_job_name: Test the restore of neokube.net (rehearsal copy on lud)
     # Every Sunday at 03:30, Chicago time, after that night's backup.
     restore_schedule_rrule: DTSTART;TZID=America/Chicago:20261011T033000 RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=SU
@@ -153,4 +154,48 @@
         unified_job_template: "{{ restore_job_name }}"
         rrule: "{{ restore_schedule_rrule }}"
         enabled: true
+      tags: job
+
+    # The real thing: restores over the live site. No schedule; launched by hand, and it asks.
+    - name: Restore job template
+      ansible.controller.job_template:
+        name: "{{ live_restore_job_name }}"
+        description: Replaces the live site's database and document library with a backup. Saves what is there first (ansible/README.md)
+        organization: "{{ organization }}"
+        project: homelab
+        playbook: ansible/playbooks/liferay_restore.yml
+        inventory: localhost
+        execution_environment: "{{ execution_environment }}"
+        credentials:
+          - lud backup service account
+        instance_groups:
+          - nas-backup
+        job_type: run
+        extra_vars:
+          restore_namespace: liferay
+        survey_enabled: true
+        survey_spec:
+          name: Restore
+          description: Which backup, and confirmation
+          spec:
+            - question_name: Backup to restore
+              question_description: >-
+                A folder name under ~/projects/backups/liferay-lud on the NAS, such as 2026-10-05-1636
+                (UTC), or "latest" for the newest.
+              variable: backup_name
+              type: text
+              required: true
+              default: latest
+              min: 1
+              max: 64
+            - question_name: Type neokube.net to confirm
+              question_description: >-
+                This replaces everything on the live site with the backup. The site is down for about
+                ten minutes. What is there now is saved to pre-restore/ first.
+              variable: confirm_live_restore
+              type: text
+              required: true
+              default: ""
+              min: 1
+              max: 64
       tags: job

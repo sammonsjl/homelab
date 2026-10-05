@@ -2,14 +2,19 @@
 # Restores a backup of neokube.net (made by liferay_backup.yml) into a Liferay
 # on lud, by the steps in the backup's own README.md, and checks the result.
 #
-# By default it restores the newest backup into the rehearsal copy (namespace
-# liferay-restore), which it starts for the test and stops afterwards: a full
-# restore test that never touches the live site.
+# AAP runs it from two job templates:
 #
-# It will only restore over the live site if told to twice:
-#   -e restore_namespace=liferay -e confirm_live_restore=neokube.net
-# and its service account has no right to scale the live statefulsets unless
-# you grant it. See ../README.md.
+#   "Restore neokube.net (Liferay on lud)" restores over the live site
+#   (restore_namespace=liferay). It asks which backup, and for the site's name
+#   typed out as confirmation. Before it replaces anything it saves what the
+#   live site holds at that moment to <backup_root>/pre-restore/<stamp>.
+#
+#   "Test the restore of neokube.net (rehearsal copy on lud)" restores the
+#   newest backup into the rehearsal copy (namespace liferay-restore), which it
+#   starts for the test and stops afterwards. The live site is not touched.
+#
+# Both follow the steps in the backup's own README.md, rebuild the search index
+# and check the result against what the backup recorded. See ../README.md.
 - name: Restore neokube.net from a backup
   hosts: localhost
   connection: local
@@ -24,6 +29,8 @@
     confirm_live_restore: ""
     # Stop the copy again when done. Never applies to the live namespace.
     stop_afterwards: true
+    # Copies of the live site saved before a live restore; this many are kept.
+    pre_restore_keep: 3
 
     liferay_statefulset: liferay-default
     database_statefulset: liferay-default-database
@@ -57,7 +64,19 @@
         rehearsal: "{{ restore_namespace != live_namespace }}"
         started: "{{ now(utc=true, fmt='%s') | int }}"
         started_at: "{{ now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}"
+        stamp: "{{ now(utc=true, fmt='%Y-%m-%d-%H%M') }}"
         remote_dump: /tmp/restore-lportal.dump
+        remote_safety: /tmp/pre-restore-lportal.dump
+        remote_safety_documents: /tmp/pre-restore-document_library.tgz
+        pre_restore_copy: not taken (rehearsal copy)
+        # A restore leaves the search index stale, and the home page lists the
+        # lessons from it. Liferay rebuilds it at a start with this set; it is
+        # taken off again afterwards.
+        reindex_patch:
+          - name: LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP
+            value: "true"
+          - name: LIFERAY_INDEX_PERIOD_ON_PERIOD_STARTUP_PERIOD_DELAY
+            value: "10"
         remote_documents: /tmp/restore-document_library.tgz
 
     # 0. The backup
@@ -111,6 +130,10 @@
             - "{{ database_statefulset }}"
             - "{{ search_statefulset }}"
 
+        # Started is enough, ready is not required: a site being restored
+        # because it is broken may start and never become ready. (If Liferay
+        # cannot start at all, its volume cannot be reached this way; restore by
+        # hand from the backup's README.md.)
         - name: Start Liferay
           kubernetes.core.k8s_scale:
             api_version: apps/v1
@@ -118,7 +141,79 @@
             namespace: "{{ restore_namespace }}"
             name: "{{ liferay_statefulset }}"
             replicas: 1
-            wait_timeout: 1800
+            wait: false
+
+        - name: Wait until its container has started
+          kubernetes.core.k8s_info:
+            kind: Pod
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_pod }}"
+          register: running
+          until: >-
+            running.resources | length == 1 and
+            (running.resources[0].status.containerStatuses | default([])
+             | selectattr('name', 'equalto', liferay_container)
+             | selectattr('started', 'equalto', true) | list | length == 1)
+          retries: 180
+          delay: 10
+
+        # 1b. Before a live restore: keep what is there now
+
+        - name: Save the live site as it is
+          when: not rehearsal
+          block:
+            - name: Make the folder
+              ansible.builtin.file:
+                path: "{{ backup_root }}/pre-restore/{{ stamp }}"
+                state: directory
+                mode: "0700"
+
+            - name: Dump the live database
+              kubernetes.core.k8s_exec:
+                namespace: "{{ restore_namespace }}"
+                pod: "{{ database_pod }}"
+                command: "bash -c {{ ('pg_dump --username \"$POSTGRES_USER\" --format custom --file ' ~ remote_safety ~ ' \"$POSTGRES_DB\"') | quote }}"
+
+            - name: Copy it to the NAS
+              kubernetes.core.k8s_cp:
+                namespace: "{{ restore_namespace }}"
+                pod: "{{ database_pod }}"
+                remote_path: "{{ remote_safety }}"
+                local_path: "{{ backup_root }}/pre-restore/{{ stamp }}/lportal.dump"
+                state: from_pod
+
+            - name: Archive the live document library
+              kubernetes.core.k8s_exec:
+                namespace: "{{ restore_namespace }}"
+                pod: "{{ liferay_pod }}"
+                container: "{{ liferay_container }}"
+                command: "bash -c {{ ('tar --directory /opt/liferay/data --create --gzip --file ' ~ remote_safety_documents ~ ' document_library') | quote }}"
+
+            - name: Copy it to the NAS
+              kubernetes.core.k8s_cp:
+                namespace: "{{ restore_namespace }}"
+                pod: "{{ liferay_pod }}"
+                container: "{{ liferay_container }}"
+                remote_path: "{{ remote_safety_documents }}"
+                local_path: "{{ backup_root }}/pre-restore/{{ stamp }}/document_library.tgz"
+                state: from_pod
+
+            - name: Keep both to their owner
+              ansible.builtin.file:
+                path: "{{ backup_root }}/pre-restore/{{ stamp }}/{{ item }}"
+                mode: "0600"
+              loop:
+                - lportal.dump
+                - document_library.tgz
+
+            - name: Remember where it is
+              ansible.builtin.set_fact:
+                pre_restore_copy: "pre-restore/{{ stamp }}"
+          rescue:
+            # A site that needs restoring may be too broken to dump. Go on, and say so.
+            - name: Remember that it could not be saved
+              ansible.builtin.set_fact:
+                pre_restore_copy: "could not be taken: {{ ansible_failed_task.name | default('') }}"
 
         # 2. The document library, then stop Liferay
 
@@ -175,6 +270,21 @@
             command: "bash -c {{ ('dropdb --username \"$POSTGRES_USER\" --if-exists \"$POSTGRES_DB\" && createdb --username \"$POSTGRES_USER\" \"$POSTGRES_DB\" && pg_restore --username \"$POSTGRES_USER\" --dbname \"$POSTGRES_DB\" --no-owner --exit-on-error ' ~ remote_dump ~ ' && rm ' ~ remote_dump) | quote }}"
 
         # 4. Start Liferay on it
+
+        - name: Have Liferay rebuild the search index at this start
+          kubernetes.core.k8s:
+            state: patched
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            definition:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: "{{ liferay_container }}"
+                        env: "{{ reindex_patch }}"
 
         - name: Start Liferay
           kubernetes.core.k8s_scale:
@@ -252,12 +362,73 @@
           retries: 45
           delay: 20
 
+        # 6. Take the reindex setting off again. On the live site that is one more
+        # restart; the rehearsal copy is about to be stopped anyway.
+
+        - name: Stop the rehearsal copy's Liferay first
+          kubernetes.core.k8s_scale:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            replicas: 0
+            wait: false
+          when: rehearsal and stop_afterwards | bool
+
+        - name: Take the reindex setting off
+          kubernetes.core.k8s:
+            state: patched
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+            definition:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - name: "{{ liferay_container }}"
+                        env: "{{ reindex_patch | map('combine', {'$patch': 'delete'}) | list }}"
+
+        - name: Wait for Liferay to be back without it
+          kubernetes.core.k8s_info:
+            api_version: apps/v1
+            kind: StatefulSet
+            namespace: "{{ restore_namespace }}"
+            name: "{{ liferay_statefulset }}"
+          register: rolled
+          until: >-
+            rolled.resources[0].status.currentRevision == rolled.resources[0].status.updateRevision and
+            rolled.resources[0].status.readyReplicas | default(0) == 1 and
+            rolled.resources[0].status.observedGeneration == rolled.resources[0].metadata.generation
+          retries: 180
+          delay: 10
+          when: not (rehearsal and stop_afterwards | bool)
+
+        - name: Ask once more for the pages
+          ansible.builtin.uri:
+            url: "{{ site_url }}{{ item.path }}"
+            headers:
+              Host: "{{ site_host }}"
+              X-Forwarded-Proto: https
+            status_code: 200
+            timeout: 120
+          loop: "{{ site_checks }}"
+          loop_control:
+            label: "{{ item.path }}"
+          register: again
+          until: again.status == 200
+          retries: 30
+          delay: 10
+          when: not (rehearsal and stop_afterwards | bool)
+
         - name: Keep the result
           ansible.builtin.set_fact:
             result:
               result: passed
               backup: "{{ backup | basename }}"
               restored_into: "{{ restore_namespace }}"
+              pre_restore_copy: "{{ pre_restore_copy }}"
               started: "{{ started_at }}"
               seconds: "{{ now(utc=true, fmt='%s') | int - started | int }}"
               counts: "{{ restored_counts }}"
@@ -272,6 +443,7 @@
               result: failed
               backup: "{{ backup | basename }}"
               restored_into: "{{ restore_namespace }}"
+              pre_restore_copy: "{{ pre_restore_copy }}"
               started: "{{ started_at }}"
               failed_task: "{{ ansible_failed_task.name | default('') }}"
 
@@ -293,9 +465,23 @@
 
         - name: Write the result next to the backups
           ansible.builtin.copy:
-            dest: "{{ backup_root }}/last-restore-test.json"
+            dest: "{{ backup_root }}/{{ rehearsal | ternary('last-restore-test.json', 'last-restore.json') }}"
             mode: "0600"
             content: "{{ result | to_nice_json }}"
+
+    - name: List the copies saved before live restores
+      ansible.builtin.find:
+        paths: "{{ backup_root }}/pre-restore"
+        file_type: directory
+      register: saved
+      when: not rehearsal
+
+    - name: Keep the newest {{ pre_restore_keep }}
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ (saved.files | default([]) | map(attribute='path') | sort)[:-(pre_restore_keep | int)] }}"
+      when: not rehearsal
 
     - name: Fail the job if the restore did
       ansible.builtin.assert:
@@ -308,3 +494,4 @@
           {{ result.backup }} restored into {{ restore_namespace }} in {{ result.seconds }} seconds:
           {{ result.counts.tables }} tables, {{ result.documents }} documents,
           {{ result.pages | length }} pages and {{ result.lessons_listed }} lessons on the home page.
+          What was there before: {{ result.pre_restore_copy }}.
