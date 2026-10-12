@@ -48,6 +48,15 @@ oc get applications -n openshift-gitops -w
 
 The first command returns before the operator has created its Argo CD instance, so the `oc wait` fails with "not found" for the first minute or two; repeat it until it waits.
 
+**Bahamut only**, between the `oc wait` and `root.yaml`: OpenShift Local at 11 GB has almost no memory left to reserve, and Argo CD's controller stays Pending. Trim it, and remove the pods that started with the larger reservation so the smaller ones can be scheduled:
+
+```bash
+oc apply -f clusters/bahamut/argocd.yaml
+oc delete pods --all -n openshift-gitops
+```
+
+For the same reason Bahamut does not share its 11 GB with Ansible Automation Platform: with both installed, the platform's database is left Pending.
+
 The Applications are all created at once. One that needs something another one installs (an issuer needs cert-manager, the platform needs its operator) fails its first sync and retries until it goes through; that is what the `retry` block in each of them is for. Every Application syncs by itself, removes what is taken out of git (`prune`) and puts back what is changed by hand (`selfHeal`).
 
 Components shared by both clusters have a common folder (`infrastructure/cert-manager/operator`, `apps/homepage/base`) and a folder per cluster for what differs.
@@ -83,7 +92,7 @@ Bahamut needs none.
 | Local path (the node's own disk) | | ✅ | `infrastructure/local-path` |
 | `iscsid` on the node | | ✅ | `infrastructure/machine-config` |
 | Cloudflare tunnel | | ✅ | `infrastructure/cloudflare` |
-| Ansible Automation Platform | | ✅ | `infrastructure/aap` |
+| Ansible Automation Platform | no room | ✅ | `infrastructure/aap` |
 
 Not in this repo: neokube.net itself (Liferay), which is deployed to Yojimbo with Helm from its own repository, and the image registry's volume.
 
