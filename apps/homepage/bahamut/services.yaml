@@ -6,4 +6,4 @@
     - Argo CD:
         href: https://openshift-gitops-server-openshift-gitops.apps-crc.testing
         icon: argo-cd.png
-        description: What git says this cluster runs
+        description: What git says this cluster should run
