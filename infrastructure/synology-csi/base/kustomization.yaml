@@ -1,0 +1,10 @@
+# Needs the secret client-info-secret in synology-csi (key: client-info.yml),
+# made by hand from Vault. See the README.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - controller.yaml
+  - csi-driver.yaml
+  - namespace.yaml
+  - node.yaml
+  - storage-class.yaml

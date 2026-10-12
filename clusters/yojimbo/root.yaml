@@ -1,0 +1,21 @@
+# yojimbo: single-node OpenShift on lud. This one Application brings in every other one
+# (clusters/yojimbo/apps); after bootstrap it is the only thing to apply:
+#   oc apply -f clusters/yojimbo/root.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: yojimbo
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: openshift-gitops
+    path: clusters/yojimbo/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

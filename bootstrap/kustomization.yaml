@@ -1,0 +1,9 @@
+# The only thing applied by hand. It installs OpenShift GitOps (Argo CD) and
+# lets it manage the whole cluster; everything else comes from git through
+# clusters/<name>/root.yaml.
+#   oc apply -k bootstrap
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - operator.yaml
+  - cluster-admin.yaml

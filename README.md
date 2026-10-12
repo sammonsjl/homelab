@@ -2,15 +2,11 @@
 
 ## Introduction
 
-This repo contains everything that I built for my homelab.  The purpose of my homelab is to create an environment that I maintain and allows me to expand my knowledge on topics such as: Terraform, Kubernetes and FluxCD.  Terraform is used to automate the whole environment.  Every cluster runs Talos Linux: Terraform creates the VMs (on Proxmox for production, on my laptop's KVM for development), provisions Kubernetes on them from one shared Talos module, and hands the process over to FluxCD to build out the cluster.
+This repo contains everything that runs on my homelab clusters. The purpose of my homelab is to have an environment that I maintain and that lets me expand my knowledge of OpenShift, GitOps and Ansible. Both clusters are OpenShift, and both are built from this repo by [OpenShift GitOps](https://docs.redhat.com/en/documentation/red_hat_openshift_gitops) (Argo CD): one command installs the GitOps operator, one more hands it the cluster's list of applications, and git is the source of truth from there.
 
-By self-hosting a blog on Ghost CMS, it creates a real-world environment that makes me feel responsible for the entire process of deploying and maintaining the application and to think about backup strategies, security, scalability and the ease of deployment and maintenance.
+Running a real site on it ([neokube.net](https://neokube.net)) makes me responsible for the whole process of deploying and maintaining an application, and makes me think about backups, security and how a change gets to production.
 
-## Cluster Provisioning & Architecture
-
-I use [Talos Linux](https://www.talos.dev/) to set up my clusters. I prefer Talos because it is lightweight, minimal and provides production grade security right out of the box. My installation is completely manged by Terraform which allows me to manage all my Talos clusters across environments.
-
-Below is my current list of Kubernetes Clusters and their functions:
+## Clusters
 
 <table>
     <tr>
@@ -19,214 +15,90 @@ Below is my current list of Kubernetes Clusters and their functions:
         <th>Description</th>
     </tr>
     <tr>
-    <td>1</td>
-    <td>Bahamut</td>
-        <td>DEV cluster on Talos Linux: three control planes on my laptop's KVM (libvirt), built with Terraform from the same Talos module, machine config and image as Yojimbo. Every Talos upgrade or config change is tried here before it goes to Yojimbo.</td>
+        <td>1</td>
+        <td>Bahamut</td>
+        <td>DEV cluster: <a href="https://developers.redhat.com/products/openshift-local">OpenShift Local</a> on my laptop. A change to anything the two clusters share is tried here before it goes to Yojimbo.</td>
     </tr>
     <tr>
         <td>2</td>
-    <td>Yojimbo</td>
-        <td>PRD cluster on Talos Linux, built with Terraform on Proxmox.  Treated as a production system with the goal to keeping it running as much as possible.</td>
+        <td>Yojimbo</td>
+        <td>PRD cluster: single-node OpenShift on bare metal (<code>lud</code>, a mini PC with 32 GB RAM). Treated as a production system with the goal of keeping it running as much as possible.</td>
     </tr>
 </table>
 
-### Trying a Talos change
+## How a cluster is built
 
-`terraform/modules/talos-cluster` holds everything Talos (machine-config
-templates, image schematic, Cilium bootstrap) and is shared by both clusters;
-`terraform/modules/talos` (Proxmox) and `terraform/modules/talos-libvirt` (KVM)
-only build the VMs. A change is proven on Bahamut first:
-
-1. Make it in the shared module, or bump `talos_version` / `image.version` in
-   `terraform/bahamut/main.tf`.
-2. `terraform -chdir=terraform/bahamut apply` — or, for a version bump on a
-   running cluster, `talosctl upgrade --image <installer>` one node at a time
-   (the installer is `factory.talos.dev/nocloud-installer/<schematic>:<version>`,
-   already set as each node's install image).
-3. Check the cluster, iSCSI (synology-csi) included, then do the same in
-   `terraform/yojimbo`.
-
-Bahamut lives on its own libvirt NAT network (192.168.150.0/24), so it and its
-`*-dev.neokube.net` services are reachable from the laptop only. Its External
-Secrets log in to Vault through a `jwt-bahamut` auth mount that Terraform keeps
-in step with the cluster's service-account key, since Vault on the NAS cannot
-reach the cluster to review tokens.
-
-## ACE on Kubernetes
-
-[ACE](https://github.com/sammonsjl/ace-operator) — my open-source automation
-platform, built from upstream Ansible source — runs entirely on Yojimbo.
-[ace-operator](https://github.com/sammonsjl/ace-operator) deploys the whole
-platform from a single `AutomationPlatform` resource, and every image it runs is
-built by [ace-images](https://github.com/sammonsjl/ace-images) and published to
-GHCR.
-
-```mermaid
-flowchart LR
-    user(["👤 User<br/>https://ace.neokube.net"])
-    git[("GitHub<br/>homelab · ace-operator")]
-    ghcr[("GHCR<br/>ace-images")]
-
-    subgraph yj["⚙️ Yojimbo · Talos Kubernetes"]
-        direction TB
-        flux["Flux<br/>HelmRelease"]
-        subgraph sys["namespace: ace-system"]
-            op["ace-operator"]
-        end
-        subgraph ns["namespace: ace"]
-            direction TB
-            envoy["envoy :443<br/>LoadBalancer · Cilium"]
-            gateway["gateway<br/>auth · platform UI"]
-            comps["controller · hub · EDA"]
-            data["postgres · redis"]
-            job["ephemeral job pods<br/>ace-ee-minimal"]
-            envoy --> gateway --> comps --> data
-            comps == "container group<br/>namespace-scoped Role" ==> job
-        end
-        flux --> op
-        op -- "reconciles<br/>AutomationPlatform" --> ns
-    end
-
-    git --> flux
-    ghcr -. images .-> ns
-    user --> envoy
+```
+bootstrap/                 the OpenShift GitOps operator: the only thing applied by hand
+clusters/<name>/root.yaml  one Argo CD Application that brings in all the others
+clusters/<name>/apps/      an Application per component
+infrastructure/            operators, storage, certificates, the tunnel
+apps/                      what runs on top
+ansible/                   the playbooks AAP runs (backup and restore of neokube.net)
 ```
 
-**How it is deployed.** Flux installs the operator from the Helm chart in the
-ace-operator repo itself ([`clusters/yojimbo/ace.yaml`](clusters/yojimbo/ace.yaml)),
-so its CRD, RBAC and reconcile code never drift apart. The platform is one
-resource, [`apps/yojimbo/ace/platform.yaml`](apps/yojimbo/ace/platform.yaml):
-the gateway, controller, hub and EDA, each pinned to an immutable ace-images
-tag, plus operator-managed PostgreSQL and Redis. The operator brings the
-gateway up first — each component's service secret is issued from inside the
-gateway pod — then deploys the components itself; no other operators need to
-be installed. envoy takes its own LoadBalancer address, which External DNS
-publishes as `ace.neokube.net`.
+On a cluster you are logged in to as a cluster administrator:
 
-**How jobs run.** The platform and its jobs share the cluster. The controller
-launches each job as an ephemeral pod in the `ace` namespace through a
-container group, running the `ace-ee-minimal` execution environment, and the
-pod is removed when the job finishes. The controller's ServiceAccount is bound
-to a Role scoped to that namespace — pods, their logs and attach, and the
-secrets it creates for them — so it cannot reach anything else in the cluster.
+```bash
+oc apply -k bootstrap
+oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
+oc apply -f clusters/bahamut/root.yaml      # or clusters/yojimbo/root.yaml
+oc get applications -n openshift-gitops -w
+```
 
-**How it is watched.** A ServiceMonitor scrapes the controller's metrics
-through the gateway (the component rejects direct calls), and an *ACE Platform*
-Grafana dashboard ships beside it in [`apps/yojimbo/ace/`](apps/yojimbo/ace/).
+The first command returns before the operator has created its Argo CD instance, so the `oc wait` fails with "not found" for the first minute or two; repeat it until it waits.
 
-ACE also runs without Kubernetes:
-[ace-containerized-installer](https://github.com/sammonsjl/ace-containerized-installer)
-installs it as rootless podman containers on one VM, and
-[ace-the-hard-way](https://github.com/sammonsjl/ace-the-hard-way) builds it by
-hand from source across six.
+The Applications are all created at once. One that needs something another one installs (an issuer needs cert-manager, the platform needs its operator) fails its first sync and retries until it goes through; that is what the `retry` block in each of them is for. Every Application syncs by itself, removes what is taken out of git (`prune`) and puts back what is changed by hand (`selfHeal`).
+
+Components shared by both clusters have a common folder (`infrastructure/cert-manager/operator`, `apps/homepage/base`) and a folder per cluster for what differs.
+
+### Trying a change
+
+1. Make the change on a branch and point Bahamut's Applications at it (`targetRevision`), or commit it to the branch Bahamut already follows.
+2. Watch it sync: `oc get applications -n openshift-gitops`, or the Argo CD console.
+3. When Bahamut is healthy, merge. Yojimbo picks it up within three minutes.
+
+### Secrets
+
+Secrets are kept in HashiCorp Vault on the NAS and are not in this repo. Yojimbo needs three, created by hand before `root.yaml` is applied:
+
+| Secret | Namespace | Keys | Vault |
+|---|---|---|---|
+| `cloudflare-api-token` | `cert-manager` | `token` | `secrets/cloudflare`, `TOKEN` |
+| `cloudflare` | `cloudflare` | `ACCOUNT_ID`, `TOKEN` | `secrets/cloudflare` |
+| `client-info-secret` | `synology-csi` | `client-info.yml` | `secrets/synology` |
+
+Bahamut needs none.
+
+## What runs where
+
+| Component | Bahamut | Yojimbo | Folder |
+|---|---|---|---|
+| OpenShift GitOps (Argo CD) | ✅ | ✅ | `bootstrap` |
+| cert-manager operator | ✅ | ✅ | `infrastructure/cert-manager/operator` |
+| Certificate issuers | a private CA | Let's Encrypt over DNS-01 at Cloudflare; certificates for the router, the API and the console | `infrastructure/cert-manager/<cluster>` |
+| Homepage | ✅ | ✅ | `apps/homepage` |
+| Synology CSI (iSCSI LUNs on the NAS, the default class) | | ✅ | `infrastructure/synology-csi` |
+| NFS CSI (folders on the NAS) | | ✅ | `infrastructure/nfs-csi` |
+| Local path (the node's own disk) | | ✅ | `infrastructure/local-path` |
+| `iscsid` on the node | | ✅ | `infrastructure/machine-config` |
+| Cloudflare tunnel | | ✅ | `infrastructure/cloudflare` |
+| Ansible Automation Platform | | ✅ | `infrastructure/aap` |
+
+Not in this repo: neokube.net itself (Liferay), which is deployed to Yojimbo with Helm from its own repository, and the image registry's volume.
 
 ## :computer: Hardware
 
-### Nodes
-
-I use a mini pc with 64 GB RAM running Proxmox to simulate the compute layer in a cloud environment.  There is also a Synology NAS that simulates the storage layer.  The NAS is used to provision cluster storage using iSCSI and NFS shared volumes depending on the requirements.
-
-## :rocket: Installed Apps & Tools
-
-### Apps
-
-End User Applications
-<table>
-    <tr>
-        <th>Logo</th>
-        <th>Name</th>
-        <th>Description</th>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/ansible.svg"></td>
-        <td><a href="https://github.com/sammonsjl/ace-operator">ACE</a></td>
-        <td>Open-source automation platform built from upstream Ansible source, deployed by ace-operator</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/ghost.png"></td>
-        <td><a href="https://ghost.org/">Ghost CMS</a></td>
-        <td>Open Source blogging platform for easily hosting a blog on Kubernetes</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/homepage.png"></td>
-        <td><a href="https://github.com/gethomepage/homepage">Homepage</a></td>
-        <td>My customized portal to my homelab & internet</td>
-    </tr>
-</table>
-### Infrastructure
-
-Everything needed to run my cluster & deploy my applications
-<table>
-    <tr>
-        <th>Logo</th>
-        <th>Name</th>
-        <th>Description</th>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/cert-manager.svg"></td>
-        <td><a href="https://cert-manager.io/">Cert Manager</a></td>
-        <td>X.509 certificate management for Kubernetes.</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/cilium.svg"></td>
-        <td><a href="https://cilium.io/">Cilium</a></td>
-        <td>My CNI of choice, used on all clusters. eBPF-based Networking, Observability, Security</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/cloudflare-zero-trust.png"></td>
-        <td><a href="https://developers.cloudflare.com/cloudflare-one/">Cloudflare Zero Trust</a></td>
-        <td>Used for private tunnels to expose public services (without requiring a public IP).</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/mysql.svg"></td>
-        <td><a href="https://cloudnative-pg.io/">Percona XtraDB Clusater</a></td>
-        <td>Database operator for running MySQL clusters</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://kubernetes-sigs.github.io/external-dns/latest/docs/img/external-dns.png"></td>
-        <td><a href="https://github.com/kubernetes-sigs/external-dns">External DNS</a></td>
-        <td>Synchronizes exposed Kubernetes Services and Ingresses with DNS providers.</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaudD4vHFe5vlnOLlJAC6nc5y_do3vB-QxlA&s"></td>
-        <td><a href="https://external-secrets.io/latest/">External Secrets Operator</a></td>
-        <td>Used to sync my secrets from HashiCorp Vault to my cluster</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/flux-cd.svg"></td>
-        <td><a href="https://fluxcd.io/">Flux CD</a></td>
-        <td>My GitOps solution of choice. Better than Argo.</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/grafana.svg"></td>
-        <td><a href="https://grafana.com/">Grafana</a></td>
-        <td>The open observability platform.</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/svg/prometheus.svg"></td>
-        <td><a href="https://prometheus.io/">Prometheus</a></td>
-        <td>An open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/synology.svg"></td>
-        <td><a href="https://github.com/SynologyOpenSource/synology-csi">Synology CSI Driver</a></td>
-        <td>Used to provision Persistent Volumes directly on my Synology</td>
-    </tr>
-    <tr>
-        <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/terraform.svg"></td>
-        <td><a href="https://developer.hashicorp.com/terraform">Terraform</a></td>
-        <td>Used to Provision Proxmox and Talos using IaC</td>
-    </tr>
-</table>
+`lud` is a mini PC with 32 GB RAM that runs OpenShift directly, with no hypervisor under it. A Synology DS224+ is the storage layer: cluster volumes are provisioned on it over iSCSI and NFS, depending on what the workload needs, and the backups land on it.
 
 ## Networking
 
-I use [Cilium](https://cilium.io/) as my CNI. I use LoadBalancer IPAM to assign IP addresses to my LoadBalancer services and use Cilium as an ingress controller. This way, I don't need to install and maintain a separate ingress controller like Traefik or Nginx
+OpenShift's own network (OVN-Kubernetes) and its router do the work: every app is published with a `Route` under the cluster's `*.apps` name, and the router serves a wildcard certificate that cert-manager keeps renewed. Names resolve on the LAN through Pi-hole. The one public name, neokube.net, comes in through a Cloudflare tunnel and never needs an open port.
 
-### Storage
+## Storage
 
-I use a Synology DS224+ as a NAS. I use the Synology CSI driver to provision Persistent Volumes from my clusters directly on the NAS. I also have an NFS share for data that needs to be shared between clusters.
+The [Synology CSI driver](https://github.com/SynologyOpenSource/synology-csi) provisions a LUN on the NAS per volume, and the [NFS CSI driver](https://github.com/kubernetes-csi/csi-driver-nfs) a folder per volume for data several pods share.
 
-## Secret Management
+## Backups
 
-Hashicorp Vault is used to store my secrets. I sync them to my cluster using the External Secrets Operator.
+Ansible Automation Platform on Yojimbo backs up neokube.net to the NAS every night and tests the restore. See [`ansible/`](ansible/README.md).

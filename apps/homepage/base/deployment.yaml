@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homepage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homepage
+    spec:
+      serviceAccountName: homepage
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      enableServiceLinks: true
+      # OpenShift runs the pod as a random UID that cannot write to the
+      # image's own folders. Homepage writes into its config folder (logs,
+      # and any config file it does not find), so the folder is an emptyDir
+      # that this fills from the ConfigMap.
+      initContainers:
+        - name: config
+          image: "ghcr.io/gethomepage/homepage:latest@sha256:643bd0be730d40f69d58028a55d1a896739333e8815786df42bc97f109ecbe61"
+          command: ["sh", "-c", "cp /config-src/* /app/config/"]
+          volumeMounts:
+            - mountPath: /config-src
+              name: homepage-config
+            - mountPath: /app/config
+              name: config
+      containers:
+        - name: homepage
+          image: "ghcr.io/gethomepage/homepage:latest@sha256:643bd0be730d40f69d58028a55d1a896739333e8815786df42bc97f109ecbe61"
+          imagePullPolicy: Always
+          env:
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: "*"
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /app/config
+              name: config
+      volumes:
+        - name: homepage-config
+          configMap:
+            name: homepage-config
+        - name: config
+          emptyDir: {}

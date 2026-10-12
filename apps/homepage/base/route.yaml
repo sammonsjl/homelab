@@ -1,0 +1,17 @@
+# The host is set per cluster.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+spec:
+  to:
+    kind: Service
+    name: homepage
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

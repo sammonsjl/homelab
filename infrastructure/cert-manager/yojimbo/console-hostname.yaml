@@ -1,0 +1,31 @@
+# The console at https://lud.neokube.net, with its own Let's Encrypt
+# certificate (the *.apps wildcard doesn't cover this name).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lud-console
+  namespace: openshift-config
+spec:
+  secretName: lud-neokube-net-tls
+  dnsNames:
+    - lud.neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+---
+# Merged into the cluster Ingress config: the console operator publishes an
+# extra route for lud.neokube.net and registers it with OAuth. The default
+# console-openshift-console.apps.lud.neokube.net keeps working.
+apiVersion: config.openshift.io/v1
+kind: Ingress
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  componentRoutes:
+    - name: console
+      namespace: openshift-console
+      hostname: lud.neokube.net
+      servingCertKeyPairSecret:
+        name: lud-neokube-net-tls

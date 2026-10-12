@@ -131,16 +131,15 @@ template can be created. `--tags base` creates only what does not need that.
 
 ## lud's storage
 
-The backup assumes lud's volumes are on the NAS, as on the other clusters:
+The backup assumes lud's volumes are on the NAS. Argo CD installs both drivers from this repo
+(`clusters/yojimbo/apps`):
 
-- `infrastructure/configs/lud/synology-csi` — the base synology-csi with three changes for single-node OpenShift on
-  RHCOS (host `iscsiadm` through `--chroot-dir=/host`, the privileged SCC, no ExternalSecret). `iscsid` is enabled
-  on the node by a MachineConfig, and `client-info-secret` is created by hand from Vault (`secrets/synology`).
-- `infrastructure/controllers/lud/nfs-csi` — the `nfs-csi` class for lud. The driver is the same chart and version
-  as `infrastructure/controllers/base/nfs-csi`, installed with Helm because lud has no Flux:
-
-      helm upgrade --install nfs-csi csi-driver-nfs/csi-driver-nfs --version 4.13.4 -n kube-system
-      oc adm policy add-scc-to-user privileged -z csi-nfs-controller-sa -z csi-nfs-node-sa -n kube-system
+- `infrastructure/synology-csi/yojimbo` — the base synology-csi with two changes for single-node OpenShift on
+  RHCOS (host `iscsiadm` through `--chroot-dir=/host`, and the privileged SCC). `iscsid` is enabled on the node by
+  the MachineConfig in `infrastructure/machine-config/yojimbo`, and `client-info-secret` is created by hand from
+  Vault (`secrets/synology`).
+- `infrastructure/nfs-csi/yojimbo` — the `nfs-csi` class for lud and the driver's SCC binding. The driver is the
+  `csi-driver-nfs` chart, named in `clusters/yojimbo/apps/nfs-csi.yaml`.
 
 | What | Where |
 |---|---|

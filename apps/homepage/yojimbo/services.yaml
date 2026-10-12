@@ -1,0 +1,24 @@
+- Yojimbo:
+    - OpenShift console:
+        href: https://lud.neokube.net
+        icon: openshift.png
+        description: Single-node OpenShift on lud
+    - Argo CD:
+        href: https://openshift-gitops-server-openshift-gitops.apps.lud.neokube.net
+        icon: argo-cd.png
+        description: What git says this cluster runs
+    - Ansible Automation Platform:
+        href: https://aap.neokube.net
+        icon: ansible.png
+        description: Runs the nightly backup of neokube.net
+    - NeoKube:
+        href: https://neokube.net
+        icon: liferay.png
+        description: The site
+- Network and storage:
+    - Pi-hole:
+        href: http://192.168.1.11:80/admin
+        icon: pi-hole.png
+    - Synology:
+        href: https://192.168.1.4:5001
+        icon: synology.png

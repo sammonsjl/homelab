@@ -1,0 +1,28 @@
+# Point the router and the API server at the certificates in certificates.yaml.
+# Both objects are the cluster's own and exist from install; this only sets
+# the fields below. Prune=false: taking this file out of git must never delete
+# the router or the API server's configuration.
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: default
+  namespace: openshift-ingress-operator
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  defaultCertificate:
+    name: apps-wildcard-tls
+---
+apiVersion: config.openshift.io/v1
+kind: APIServer
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  servingCerts:
+    namedCertificates:
+      - names:
+          - api.lud.neokube.net
+        servingCertificate:
+          name: api-tls

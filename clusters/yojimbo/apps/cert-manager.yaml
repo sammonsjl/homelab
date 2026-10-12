@@ -1,0 +1,27 @@
+# Issuers and certificates. Their kinds do not exist until the operator has
+# installed cert-manager, so the sync skips its dry run and retries until they do.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: openshift-gitops
+    path: infrastructure/cert-manager/yojimbo
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 20
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - SkipDryRunOnMissingResource=true

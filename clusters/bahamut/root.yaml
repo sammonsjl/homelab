@@ -1,0 +1,21 @@
+# bahamut: OpenShift Local on the laptop. This one Application brings in every other one
+# (clusters/bahamut/apps); after bootstrap it is the only thing to apply:
+#   oc apply -f clusters/bahamut/root.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bahamut
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: openshift-gitops
+    path: clusters/bahamut/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

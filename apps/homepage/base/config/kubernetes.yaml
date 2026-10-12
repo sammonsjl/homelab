@@ -1,0 +1,6 @@
+# The widgets read the cluster through the pod's own service account.
+# OpenShift publishes apps with Routes, which Homepage cannot discover, so
+# the links are listed by hand in each cluster's services.yaml.
+mode: cluster
+ingress: false
+gateway: false

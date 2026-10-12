@@ -1,0 +1,9 @@
+- Bahamut:
+    - OpenShift console:
+        href: https://console-openshift-console.apps-crc.testing
+        icon: openshift.png
+        description: OpenShift Local on the laptop
+    - Argo CD:
+        href: https://openshift-gitops-server-openshift-gitops.apps-crc.testing
+        icon: argo-cd.png
+        description: What git says this cluster runs

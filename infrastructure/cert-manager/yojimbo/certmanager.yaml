@@ -1,0 +1,13 @@
+# The operator creates this object; this adds the resolver settings DNS-01
+# needs behind Pi-hole. Prune=false: never delete the operator's own object.
+apiVersion: operator.openshift.io/v1alpha1
+kind: CertManager
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  controllerConfig:
+    overrideArgs:
+      - --dns01-recursive-nameservers-only
+      - --dns01-recursive-nameservers=1.1.1.1:53,9.9.9.9:53

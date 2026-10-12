@@ -1,0 +1,44 @@
+# Gateway and controller (+ metrics, the default). Hub and EDA are disabled below.
+# Lightspeed stays off (it needs an AI backend).
+#
+# lud has 8 threads and 31 GB. The operator's defaults reserve ~11 GiB and
+# most of the CPU for AAP alone (real use is about half that), which left no
+# room to schedule anything else, e.g. a VM. So: one replica of each hub/EDA
+# worker type instead of two, and the gateway's 750Mi-per-container request
+# brought down to what it uses. Requests only affect scheduling.
+apiVersion: aap.ansible.com/v1alpha1
+kind: AnsibleAutomationPlatform
+metadata:
+  name: aap
+  namespace: aap
+spec:
+  # Served at https://aap.neokube.net with the Let's Encrypt certificate that
+  # cert-manager keeps in aap-neokube-net-tls (10-certificate.yaml).
+  route_host: aap.neokube.net
+  route_tls_termination_mechanism: Edge
+  route_tls_secret: aap-neokube-net-tls
+  api:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 384Mi}
+  proxy:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: "256"}   # the operator's default; caps envoy worker threads
+  # PostgreSQL on a LUN on the NAS (synology-csi), not on lud's own disk.
+  database:
+    postgres_storage_class: synology-iscsi
+  # Hub and EDA are left out (2026-10-05): lud also runs Liferay, and these two are the part of
+  # the platform it can do without. To bring one back, replace its block with its settings:
+  # hub wants storage_type: file, file_storage_storage_class: local-path, ReadWriteOnce, 50Gi and
+  # one replica each of content and worker; eda one replica each of default_worker and
+  # activation_worker.
+  hub:
+    disabled: true
+  eda:
+    disabled: true
+  # Ansible MCP server: exposes AAP to MCP clients (AI assistants) through
+  # the gateway. Requests 100m CPU / 500Mi by default.
+  mcp:
+    disabled: false
+  lightspeed:
+    disabled: true

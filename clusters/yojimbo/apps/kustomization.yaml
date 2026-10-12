@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - aap-operator.yaml
+  - aap.yaml
+  - cert-manager-operator.yaml
+  - cert-manager.yaml
+  - cloudflare.yaml
+  - homepage.yaml
+  - local-path.yaml
+  - machine-config.yaml
+  - nfs-csi-config.yaml
+  - nfs-csi.yaml
+  - synology-csi.yaml

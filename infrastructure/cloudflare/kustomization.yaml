@@ -1,0 +1,12 @@
+# The Cloudflare tunnel that publishes neokube.net: a controller that turns a
+# Gateway into a cloudflared deployment, and HTTPRoutes into its public
+# hostnames. OpenShift ships the Gateway API CRDs.
+# Needs the secret cloudflare in this namespace (keys ACCOUNT_ID and TOKEN),
+# made by hand from Vault. See the README.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - controller
+  - gatewayclass.yaml
+  - gateway.yaml
+  - scc.yaml

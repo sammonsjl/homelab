@@ -1,0 +1,7 @@
+# What goes with the csi-driver-nfs chart on lud. The chart itself is named in
+# clusters/yojimbo/apps/nfs-csi.yaml.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - scc.yaml
+  - storage-class.yaml

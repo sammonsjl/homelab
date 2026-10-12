@@ -1,0 +1,28 @@
+# Needs iscsid running on the node: infrastructure/machine-config/yojimbo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base/
+  - scc.yaml
+patches:
+  # RHCOS has iscsiadm on the host, at the same version as the host's iscsid.
+  # The iscsiadm inside the image is a newer build and must not talk to an
+  # older iscsid: the IPC has no version check and a mismatch wedges the
+  # daemon. So the driver chroots into the host and runs the host's tools, as
+  # upstream intends.
+  - target:
+      kind: DaemonSet
+      name: synology-csi-node
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/1/args/1
+        value: --chroot-dir=/host
+  # The only block storage on lud that outlives the node, so it is the default.
+  - target:
+      kind: StorageClass
+      name: synology-iscsi
+    patch: |
+      - op: add
+        path: /metadata/annotations
+        value:
+          storageclass.kubernetes.io/is-default-class: "true"
