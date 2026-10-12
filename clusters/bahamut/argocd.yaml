@@ -1,0 +1,39 @@
+# OpenShift Local at its 11 GB has almost no memory left to reserve: the
+# cluster's own pods reserve nearly all of it. Argo CD as the operator sets it
+# up reserves 2.4 GB, and its controller is left Pending. This trims the
+# operator's own instance to about 0.6 GB. Requests only decide where a pod
+# may be scheduled; what it uses is unchanged. Apply it once the operator has
+# created the instance, before root.yaml:
+#   oc apply -f clusters/bahamut/argocd.yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  # Nothing here uses ApplicationSets.
+  applicationSet:
+    enabled: false
+  controller:
+    resources:
+      requests: {cpu: 100m, memory: 128Mi}
+      limits: {cpu: "2", memory: 2Gi}
+  repo:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  server:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 256Mi}
+  redis:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 256Mi}
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+      resources:
+        requests: {cpu: 50m, memory: 64Mi}
+        limits: {cpu: 500m, memory: 256Mi}
