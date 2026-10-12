@@ -6,7 +6,7 @@
     - Argo CD:
         href: https://openshift-gitops-server-openshift-gitops.apps.lud.neokube.net
         icon: argo-cd.png
-        description: What git says this cluster runs
+        description: What git says this cluster should run
     - Ansible Automation Platform:
         href: https://aap.neokube.net
         icon: ansible.png
