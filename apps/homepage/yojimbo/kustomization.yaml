@@ -8,6 +8,9 @@ configMapGenerator:
     behavior: merge
     files:
       - services.yaml
+      # Cluster and node figures. They come from the metrics API, which
+      # OpenShift Local leaves switched off, so only lud shows them.
+      - widgets.yaml
 patches:
   - target:
       kind: Route
