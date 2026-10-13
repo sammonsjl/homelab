@@ -15,7 +15,7 @@
         href: https://neokube.net
         # The icon set Homepage draws from has none for Liferay, so this is the
         # site's own.
-        icon: https://neokube.net/o/classic-theme/images/favicon.ico
+        icon: https://neokube.net/o/neokube-favicon/favicon.svg
         description: The site
     - Uptime Kuma:
         href: https://uptime.neokube.net
