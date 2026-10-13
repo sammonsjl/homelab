@@ -19,7 +19,10 @@ spec:
       valuesObject:
         resources:
           requests:
-            cpu: 50m
+            # lud's CPU requests are 98% spoken for. A request here of even
+            # 50m left no room for the 250m pod that AAP starts for the backup
+            # of neokube.net, which then waited for ever.
+            cpu: 1m
             memory: 64Mi
           limits:
             memory: 256Mi
