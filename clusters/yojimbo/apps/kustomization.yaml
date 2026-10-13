@@ -6,9 +6,13 @@ resources:
   - cert-manager-operator.yaml
   - cert-manager.yaml
   - cloudflare.yaml
+  - headlamp-config.yaml
+  - headlamp.yaml
   - homepage.yaml
   - local-path.yaml
   - machine-config.yaml
   - nfs-csi-config.yaml
   - nfs-csi.yaml
   - synology-csi.yaml
+  - uptime-kuma-config.yaml
+  - uptime-kuma.yaml

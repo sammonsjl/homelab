@@ -1,0 +1,38 @@
+# Headlamp, from its Helm chart: a web UI for the cluster. Its namespace, Route
+# and SCC binding are headlamp-config.yaml.
+#
+# The chart binds the headlamp service account to cluster-admin. Sign in with
+# a token for it: oc create token headlamp -n headlamp
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: headlamp
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/headlamp/
+    chart: headlamp
+    targetRevision: 0.45.0
+    helm:
+      releaseName: headlamp
+      valuesObject:
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: headlamp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 20
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 3m

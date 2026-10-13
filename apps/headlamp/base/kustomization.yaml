@@ -1,0 +1,9 @@
+# What the headlamp chart does not bring: the namespace, the Route and the SCC
+# binding. The chart itself is the headlamp Application of each cluster.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: headlamp
+resources:
+  - namespace.yaml
+  - route.yaml
+  - scc.yaml

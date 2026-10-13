@@ -1,0 +1,17 @@
+# The host is set per cluster. The Service is the chart's.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: headlamp
+  namespace: headlamp
+  labels:
+    app.kubernetes.io/name: headlamp
+spec:
+  to:
+    kind: Service
+    name: headlamp
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

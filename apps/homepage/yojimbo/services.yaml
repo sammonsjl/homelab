@@ -15,6 +15,14 @@
         href: https://neokube.net
         icon: liferay.png
         description: The site
+    - Uptime Kuma:
+        href: https://uptime-kuma.apps.lud.neokube.net
+        icon: uptime-kuma.png
+        description: Checks that things answer
+    - Headlamp:
+        href: https://headlamp.apps.lud.neokube.net
+        icon: headlamp.png
+        description: A web UI for the cluster
 - Network and storage:
     - Pi-hole:
         href: http://192.168.1.11:80/admin

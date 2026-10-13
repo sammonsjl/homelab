@@ -3,4 +3,8 @@ kind: Kustomization
 resources:
   - cert-manager-operator.yaml
   - cert-manager.yaml
+  - headlamp-config.yaml
+  - headlamp.yaml
   - homepage.yaml
+  - uptime-kuma-config.yaml
+  - uptime-kuma.yaml

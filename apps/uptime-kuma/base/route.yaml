@@ -1,0 +1,17 @@
+# The host is set per cluster. The Service is the chart's.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+  labels:
+    app.kubernetes.io/name: uptime-kuma
+spec:
+  to:
+    kind: Service
+    name: uptime-kuma
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
