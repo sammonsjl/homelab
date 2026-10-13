@@ -6,6 +6,23 @@ This repo contains everything that runs on my homelab clusters. The purpose of m
 
 Running a real site on it ([neokube.net](https://neokube.net)) makes me responsible for the whole process of deploying and maintaining an application, and makes me think about backups, security and how a change gets to production.
 
+## Tutorials
+
+Each cluster has a set of labs that build it from this repo, step by step. They are also
+published as modules 06 and 07 of the path on [neokube.net](https://neokube.net).
+
+| Cluster | Labs | Start here |
+|---|---|---|
+| Bahamut | Fork the repo, install OpenShift GitOps on OpenShift Local, apply the root Application, make a change through git | [`docs/bahamut`](docs/bahamut/01-prerequisites.md) |
+| Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
+
+> **Status, 2026-10-13: written from one test of each cluster, not yet followed from the text.**
+> On 2026-10-12 the commands in these labs were run on both clusters: Bahamut on an OpenShift
+> Local VM that already held another install, Yojimbo by handing the running cluster on `lud` to
+> Argo CD. The labs were written afterwards from that run. Nobody has followed them from the
+> page. Not run at all: Bahamut on an empty cluster and from a fork, Yojimbo from an empty
+> cluster (Lab 4 says so), the branch routine in Yojimbo's Lab 8, and any of it on OKD.
+
 ## Clusters
 
 <table>
@@ -35,6 +52,7 @@ clusters/<name>/apps/      an Application per component
 infrastructure/            operators, storage, certificates, the tunnel
 apps/                      what runs on top
 ansible/                   the playbooks AAP runs (backup and restore of neokube.net)
+docs/                      the labs: docs/bahamut and docs/yojimbo
 ```
 
 On a cluster you are logged in to as a cluster administrator:
@@ -48,11 +66,12 @@ oc get applications -n openshift-gitops -w
 
 The first command returns before the operator has created its Argo CD instance, so the `oc wait` fails with "not found" for the first minute or two; repeat it until it waits.
 
-**Bahamut only**, between the `oc wait` and `root.yaml`: OpenShift Local at 11 GB has almost no memory left to reserve, and Argo CD's controller stays Pending. Trim it, and remove the pods that started with the larger reservation so the smaller ones can be scheduled:
+**Bahamut only**, before `root.yaml`: OpenShift Local at 11 GB has almost no memory left to reserve, Argo CD's controller stays Pending, and the `oc wait` above never returns. As soon as `oc get argocd -n openshift-gitops` lists the instance, trim it, remove the pods that started with the larger reservation so the smaller ones can be scheduled, and wait then:
 
 ```bash
 oc apply -f clusters/bahamut/argocd.yaml
 oc delete pods --all -n openshift-gitops
+oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
 ```
 
 For the same reason Bahamut does not share its 11 GB with Ansible Automation Platform: with both installed, the platform's database is left Pending.
