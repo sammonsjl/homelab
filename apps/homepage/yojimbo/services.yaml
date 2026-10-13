@@ -13,7 +13,9 @@
         description: Runs the nightly backup of neokube.net
     - NeoKube:
         href: https://neokube.net
-        icon: liferay.png
+        # The icon set Homepage draws from has none for Liferay, so this is the
+        # site's own.
+        icon: https://neokube.net/o/classic-theme/images/favicon.ico
         description: The site
     - Uptime Kuma:
         href: https://uptime.neokube.net
