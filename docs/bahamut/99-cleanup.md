@@ -27,10 +27,39 @@ in your fork. `crc start`, then Labs 2 and 3, and it is back.
 
 ## If you take it apart by hand
 
-To keep the cluster and remove only what this module added, delete in this order: the
-Applications, then the `ArgoCD` instance, then the operator's Subscription and its
-ClusterServiceVersion, and the namespaces last.
+`crc delete` is the clean way. To keep the cluster and remove only what this module added, the
+order that worked on the test run is below. It leaves the cluster-wide definitions and roles the
+two operators installed, which do no harm.
 
-> On the test run the operator was removed before its instance. The namespace
-> `openshift-gitops` then hung in `Terminating`, because the `ArgoCD` object carries a finalizer
-> that only the operator can clear. The order above avoids that; it has not been run as written.
+```bash
+N=openshift-gitops
+
+# 1. The root first, so that it does not put the others back
+oc delete application bahamut -n $N
+
+# 2. The other three, each taking what it made with it
+for app in cert-manager homepage cert-manager-operator; do
+  oc patch application $app -n $N --type merge \
+    -p '{"metadata":{"finalizers":["resources-finalizer.argocd.argoproj.io"]}}'
+done
+oc delete application cert-manager homepage -n $N
+oc delete application cert-manager-operator -n $N
+
+# 3. The GitOps operator, then its instance
+oc delete subscription openshift-gitops-operator -n openshift-gitops-operator
+oc delete csv --all -n openshift-gitops-operator
+oc delete namespace openshift-gitops openshift-gitops-operator cert-manager --wait=false
+oc delete clusterrolebinding openshift-gitops-cluster-admin
+```
+
+An Application deleted as it is leaves everything it created. With the finalizer added first,
+Argo CD removes what the Application made and then the Application.
+
+The namespace `openshift-gitops` then hangs in `Terminating`. The `ArgoCD` object in it carries a
+finalizer that only the operator clears, and the operator is gone. Deleting the instance first
+does not help: the operator makes a new one. Clear the finalizer by hand:
+
+```bash
+oc patch argocd openshift-gitops -n openshift-gitops --type merge -p '{"metadata":{"finalizers":null}}'
+oc patch certmanager cluster --type merge -p '{"metadata":{"finalizers":null}}'
+```
