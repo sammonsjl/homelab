@@ -27,6 +27,19 @@
     - Pi-hole:
         href: http://192.168.1.11:80/admin
         icon: pi-hole.png
+        widget:
+          type: pihole
+          url: http://192.168.1.11:80
+          version: 6
+          key: "{{HOMEPAGE_VAR_PIHOLE_KEY}}"
     - Synology:
         href: https://192.168.1.4:5001
         icon: synology.png
+        widget:
+          type: diskstation
+          # Straight to DSM on 5001, like the link above.
+          url: https://192.168.1.4:5001
+          username: "{{HOMEPAGE_VAR_SYNOLOGY_USERNAME}}"
+          password: "{{HOMEPAGE_VAR_SYNOLOGY_PASSWORD}}"
+          # DSM's own name for it, as the storage API reports it.
+          volume: volume_1

@@ -89,13 +89,14 @@ Components shared by both clusters have a common folder (`infrastructure/cert-ma
 
 ### Secrets
 
-Secrets are kept in HashiCorp Vault on the NAS and are not in this repo. Yojimbo needs three, created by hand before `root.yaml` is applied:
+Secrets are kept in HashiCorp Vault on the NAS and are not in this repo. Yojimbo needs four, created by hand before `root.yaml` is applied. The portal starts without the fourth; its Pi-hole and Synology widgets then show an error:
 
 | Secret | Namespace | Keys | Vault |
 |---|---|---|---|
 | `cloudflare-api-token` | `cert-manager` | `token` | `secrets/cloudflare`, `TOKEN` |
 | `cloudflare` | `cloudflare` | `ACCOUNT_ID`, `TOKEN` | `secrets/cloudflare` |
 | `client-info-secret` | `synology-csi` | `client-info.yml` | `secrets/synology` |
+| `homepage-widgets` | `homepage` | `HOMEPAGE_VAR_PIHOLE_KEY`, `HOMEPAGE_VAR_SYNOLOGY_USERNAME`, `HOMEPAGE_VAR_SYNOLOGY_PASSWORD` | `secrets/pihole`, `secrets/synology` |
 
 Bahamut needs none.
 
