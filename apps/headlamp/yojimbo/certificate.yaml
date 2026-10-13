@@ -1,0 +1,49 @@
+# headlamp.neokube.net is outside *.apps.lud.neokube.net, so the wildcard certificate of
+# the ingress controller does not cover it. The Route names this one, and the
+# router may read a Route's certificate Secret only if a Role lets it.
+#
+# Wave -1: Argo CD waits for the Certificate to be Ready before it changes the
+# Route, which the API refuses while the Secret is missing.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: headlamp
+  namespace: headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: headlamp-neokube-net-tls
+  dnsNames:
+    - headlamp.neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: router-read-headlamp-neokube-net-tls
+  namespace: headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [headlamp-neokube-net-tls]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: router-read-headlamp-neokube-net-tls
+  namespace: headlamp
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: router-read-headlamp-neokube-net-tls
+subjects:
+  - kind: ServiceAccount
+    name: router
+    namespace: openshift-ingress

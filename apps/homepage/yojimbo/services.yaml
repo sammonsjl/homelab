@@ -16,11 +16,11 @@
         icon: liferay.png
         description: The site
     - Uptime Kuma:
-        href: https://uptime-kuma.apps.lud.neokube.net
+        href: https://uptime.neokube.net
         icon: uptime-kuma.png
         description: Checks that things answer
     - Headlamp:
-        href: https://headlamp.apps.lud.neokube.net
+        href: https://headlamp.neokube.net
         icon: headlamp.png
         description: A web UI for the cluster
 - Network and storage:

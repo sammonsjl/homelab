@@ -107,8 +107,8 @@ Bahamut needs none.
 | cert-manager operator | ✅ | ✅ | `infrastructure/cert-manager/operator` |
 | Certificate issuers | a private CA | Let's Encrypt over DNS-01 at Cloudflare; certificates for the router, the API and the console | `infrastructure/cert-manager/<cluster>` |
 | Homepage | ✅ | ✅ | `apps/homepage` |
-| Uptime Kuma (Helm chart) | added, not yet run | added, not yet run | `apps/uptime-kuma` |
-| Headlamp (Helm chart) | added, not yet run | added, not yet run | `apps/headlamp` |
+| Uptime Kuma (Helm chart) | added, not yet run | ✅ `uptime.neokube.net` | `apps/uptime-kuma` |
+| Headlamp (Helm chart) | added, not yet run | ✅ `headlamp.neokube.net` | `apps/headlamp` |
 | Synology CSI (iSCSI LUNs on the NAS, the default class) | | ✅ | `infrastructure/synology-csi` |
 | NFS CSI (folders on the NAS) | | ✅ | `infrastructure/nfs-csi` |
 | Local path (the node's own disk) | | ✅ | `infrastructure/local-path` |
