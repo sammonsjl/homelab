@@ -97,7 +97,8 @@ a fix is a commit.
 ## What you have
 
 A cluster whose contents are a folder in a repository, and a place to try a change before the
-production cluster sees it. The next module, [Yojimbo](../yojimbo/01-prerequisites.md), hands a
-real machine to the same repository.
+production cluster sees it. The next module, [OKD on One Machine](https://github.com/sammonsjl/okd-single-node),
+installs a real machine, and [Yojimbo](../yojimbo/01-prerequisites.md) hands that machine to the
+same repository.
 
 Next: [Cleaning Up](99-cleanup.md)

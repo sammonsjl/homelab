@@ -67,8 +67,8 @@ apps/                      what runs on top
 docs/                      the labs
 ```
 
-There is a `clusters/yojimbo` beside `clusters/bahamut`. That is the production cluster of the
-next module. The two share folders under `infrastructure/` and `apps/`, and that sharing is the
+There is a `clusters/yojimbo` beside `clusters/bahamut`. That is the production cluster of
+module 07. The two share folders under `infrastructure/` and `apps/`, and that sharing is the
 point of having Bahamut: a change to a shared folder is seen here first.
 
 ## Point the Applications at your fork

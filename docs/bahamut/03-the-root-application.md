@@ -65,9 +65,9 @@ cert-manager-operator   Synced        Healthy
 homepage                Synced        Healthy
 ```
 
-> On the test run for this lab, on a laptop that was short of memory, `cert-manager-operator`
-> stayed `Degraded` while cert-manager itself was installed and issuing. The same Application is
-> `Healthy` on the production cluster. If you see it, check `oc get pods -n cert-manager`: three
+> On the first test run for this lab, on a laptop that was short of memory, `cert-manager-operator`
+> stayed `Degraded` while cert-manager itself was installed and issuing. On the second run, and on
+> the production cluster, it was `Healthy`. If you see it, check `oc get pods -n cert-manager`: three
 > pods `Running` is what matters for the rest of this module.
 
 ## Order without ordering

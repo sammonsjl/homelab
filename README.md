@@ -9,7 +9,7 @@ Running a real site on it ([neokube.net](https://neokube.net)) makes me responsi
 ## Tutorials
 
 Each cluster has a set of labs that build it from this repo, step by step. They are also
-published as modules 06 and 07 of the path on [neokube.net](https://neokube.net).
+published as modules 05 and 07 of the path on [neokube.net](https://neokube.net).
 
 | Cluster | Labs | Start here |
 |---|---|---|
@@ -21,7 +21,8 @@ published as modules 06 and 07 of the path on [neokube.net](https://neokube.net)
 > Local VM that already held another install, Yojimbo by handing the running cluster on `lud` to
 > Argo CD. The labs were written afterwards from that run. Nobody has followed them from the
 > page. Not run at all: Bahamut on an empty cluster and from a fork, Yojimbo from an empty
-> cluster (Lab 4 says so), the branch routine in Yojimbo's Lab 8, and any of it on OKD.
+> cluster (Lab 4 says so), the branch routine in Yojimbo's Lab 8, and any of it on OKD. Red Hat's catalog for OKD 5.0 does
+> carry the three operators these clusters install (checked 2026-10-13).
 
 ## Clusters
 

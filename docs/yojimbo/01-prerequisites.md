@@ -22,25 +22,38 @@ leave out the rest.
 
 |                      |                                                                                                                             |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **The cluster**      | Single-node OpenShift 4.22 with 32 GB of RAM, and `oc` logged in as a cluster administrator.                                 |
-| **Bahamut**          | The module before this one, done. You have a fork, and its Applications point at it.                                         |
+| **The cluster**      | Single-node OKD or OpenShift on a real machine with 32 GB of RAM, and `oc` logged in as a cluster administrator. The module before this one, [OKD on One Machine](https://github.com/sammonsjl/okd-single-node), installs it. |
+| **Bahamut**          | Module 05, done. You have a fork, and its Applications point at it.                                                          |
 | **A storage server** | Mine is a Synology NAS. The cluster makes iSCSI LUNs on it through its API, and folders on one NFS share.                    |
 | **A domain at Cloudflare** | For certificates from Let's Encrypt without opening a port, and for the tunnel that publishes one site.                |
 | **A place for secrets** | Mine is HashiCorp Vault on the NAS. A password manager does the same job here.                                            |
 | **A subscription**   | For Ansible Automation Platform. The free Developer Subscription covers it.                                                  |
 
-> **OpenShift or OKD.** The cluster on `lud` is OpenShift, and that is what these labs were run
-> on. Three operators here come from the `redhat-operators` catalog: OpenShift GitOps,
-> cert-manager and Ansible Automation Platform. A cluster built with
-> [OKD on One Machine](https://github.com/sammonsjl/okd-single-node) does not have that catalog
-> out of the box. Check before you start:
->
-> ```bash
-> oc get catalogsource -n openshift-marketplace
-> ```
->
-> If `redhat-operators` is not listed, these labs will not work as written. They have not been
-> run on OKD.
+> **OKD or OpenShift.** These labs were run on OpenShift 4.22, which is what `lud` ran when they
+> were written. Nothing here has been run on OKD yet. What is known: three operators in this
+> module come from the `redhat-operators` catalog, OpenShift GitOps, cert-manager and Ansible
+> Automation Platform, and that catalog for OKD 5.0 carries all three, on the channels this
+> repository subscribes to (checked 2026-10-13).
+
+## What Yojimbo needs from the install
+
+If you built the machine with OKD on One Machine, three of the choices you made there matter here:
+
+| Choice                    | Where                 | What Yojimbo needs                                                                 |
+| ------------------------- | --------------------- | ---------------------------------------------------------------------------------- |
+| The pull secret           | Lab 4 of that module  | The real one. With the placeholder, Red Hat's catalogs do not load, and the public catalog that replaces them does not carry these operators |
+| The cluster's names       | Labs 2 and 4          | `api.<cluster>.<domain>` and `*.apps.<cluster>.<domain>`. The certificates in this module are for exactly those names |
+| The optional capabilities | `install-config.yaml` | Left on, as that module's own config has them. The operators here need the Operator Lifecycle Manager and the marketplace |
+
+Check the first one now:
+
+```bash
+oc get catalogsource -n openshift-marketplace
+oc get pods -n openshift-marketplace
+```
+
+`redhat-operators` should be listed, and its pod `Running`. If you installed with the
+placeholder, Lab 7 of that module shows how to switch to a real pull secret without reinstalling.
 
 ## The eleven Applications
 

@@ -54,6 +54,23 @@ NAME               AGE
 openshift-gitops   40s
 ```
 
+> **If the first never shows `Succeeded`.** Look at the catalogs the operator is installed from:
+>
+> ```bash
+> oc get pods -n openshift-marketplace
+> ```
+>
+> On a 16 GB workstation the three catalog pods can end up restarting each other for good: each
+> rebuilds its index when it starts, and is stopped if that takes more than 100 seconds. If their
+> `RESTARTS` keep climbing and none is `1/1`, switch off the two this module does not use:
+>
+> ```bash
+> oc patch operatorhub cluster --type merge -p \
+>   '{"spec":{"sources":[{"name":"community-operators","disabled":true},{"name":"certified-operators","disabled":true}]}}'
+> ```
+>
+> `redhat-operators` then comes up within a few minutes, and the install carries on by itself.
+
 ## The controller is Pending
 
 ```bash
