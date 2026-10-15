@@ -20,14 +20,17 @@ spec:
       managed: true
       overrides:
         replicas: 1
-        # Quay starts gunicorn workers by the node's CPU count: 4 per CPU for
-        # the registry alone, 50 processes in all on lud's 8 threads, which
-        # outgrew 4Gi in a minute. A mirror with one client needs a few.
+        # Inside its pod Quay runs about 35 programs: gunicorn workers by the
+        # node's CPU count (4 per CPU for the registry alone) and a background
+        # worker for every feature. On lud's 8 threads that outgrew 4Gi in a
+        # minute. A mirror needs the registry, the API and the cleanup of
+        # unfinished uploads; QUAY_SERVICES starts only those.
         env:
+          - name: QUAY_SERVICES
+            value: dnsmasq,nginx,memcache,servicekey,gunicorn-registry,gunicorn-web,blobuploadcleanupworker,chunkcleanupworker,gcworker
           - {name: WORKER_COUNT_UNSUPPORTED_MINIMUM, value: "1"}
           - {name: WORKER_COUNT_REGISTRY, value: "2"}
           - {name: WORKER_COUNT_WEB, value: "1"}
-          - {name: WORKER_COUNT_SECSCAN, value: "1"}
         # The CPU limit keeps a busy Quay from slowing the site down.
         resources:
           requests: {cpu: 50m, memory: 1Gi}
