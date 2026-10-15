@@ -1,0 +1,17 @@
+# Quay's certificate for quay.neokube.net, which is outside
+# *.apps.lud.neokube.net and so not covered by the ingress controller's
+# wildcard. The QuayRegistry's tls component names this Secret: the operator
+# makes a passthrough route at SERVER_HOSTNAME, Quay serves the certificate
+# itself, and the operator restarts Quay when cert-manager renews it.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: quay
+  namespace: quay
+spec:
+  secretName: quay-neokube-net-tls
+  dnsNames:
+    - quay.neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt

@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - garage.yaml
   - registry.yaml
+  - certificate.yaml
