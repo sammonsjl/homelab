@@ -19,7 +19,7 @@ spec:
     - kind: quay
       managed: true
       overrides:
-        replicas: 1
+        replicas: 0
         # Quay starts gunicorn workers by the node's CPU count: 4 per CPU for
         # the registry alone, 50 processes in all on lud's 8 threads, which
         # outgrew 4Gi in a minute. A mirror with one client needs a few.
