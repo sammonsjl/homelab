@@ -33,6 +33,10 @@ spec:
           limits: {memory: 1Gi}
     - kind: redis
       managed: true
+      overrides:
+        resources:
+          requests: {cpu: 10m, memory: 64Mi}
+          limits: {memory: 512Mi}
     - kind: objectstorage
       managed: false
     - kind: route
