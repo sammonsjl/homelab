@@ -1,0 +1,38 @@
+# lud's CPU requests were 7.2 of its 7.5 CPU before Quay came (Lab 7), and Argo
+# CD as the operator sets it up claimed 1.9 of them while using under 0.1. This
+# trims the operator's own instance the way clusters/bahamut/argocd.yaml does.
+# Requests only decide where a pod may be scheduled; what it uses is unchanged.
+# Apply it once the operator has created the instance:
+#   oc apply -f clusters/yojimbo/argocd.yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  # Nothing here uses ApplicationSets.
+  applicationSet:
+    enabled: false
+  controller:
+    resources:
+      requests: {cpu: 100m, memory: 768Mi}
+      limits: {cpu: "2", memory: 2Gi}
+  repo:
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: "1", memory: 1Gi}
+  server:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 256Mi}
+  redis:
+    resources:
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 256Mi}
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+      resources:
+        requests: {cpu: 50m, memory: 64Mi}
+        limits: {cpu: 500m, memory: 256Mi}

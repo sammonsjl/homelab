@@ -13,6 +13,8 @@ resources:
   - machine-config.yaml
   - nfs-csi-config.yaml
   - nfs-csi.yaml
+  - quay-operator.yaml
+  - quay.yaml
   - synology-csi.yaml
   - uptime-kuma-config.yaml
   - uptime-kuma.yaml

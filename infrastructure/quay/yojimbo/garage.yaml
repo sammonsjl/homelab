@@ -1,0 +1,98 @@
+# Garage: Quay's object storage. Quay keeps image layers in an S3 bucket, never
+# on a plain volume, and the operator's own answer (OpenShift Data Foundation)
+# would cost lud several CPUs. Garage is one small S3 server.
+#
+# One node, one copy (replication_factor 1), on lud's own disk (local-path).
+# Everything in it can be copied again with oc-mirror, so it does not need the
+# NAS, and its metadata database must not be on NFS anyway. Its secrets
+# (garage) are made by hand, like those of Lab 2; the layout, bucket and key
+# are made once with the garage CLI (Lab 7). Only Quay talks to it, so it has a
+# Service and no Route.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: garage
+  namespace: quay
+data:
+  garage.toml: |
+    metadata_dir = "/var/lib/garage/meta"
+    data_dir = "/var/lib/garage/data"
+    db_engine = "sqlite"
+    replication_factor = 1
+
+    rpc_bind_addr = "0.0.0.0:3901"
+    rpc_public_addr = "127.0.0.1:3901"
+
+    [s3_api]
+    # Quay signs its requests for this region (region_name in quay-config).
+    s3_region = "garage"
+    api_bind_addr = "0.0.0.0:3900"
+
+    [admin]
+    api_bind_addr = "0.0.0.0:3903"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: garage
+  namespace: quay
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garage
+  namespace: quay
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: garage
+  template:
+    metadata:
+      labels:
+        app: garage
+    spec:
+      containers:
+        - name: garage
+          image: docker.io/dxflrs/garage:v2.4.1
+          envFrom:
+            - secretRef:
+                name: garage
+          ports:
+            - {name: s3, containerPort: 3900}
+            - {name: admin, containerPort: 3903}
+          # Not ready until the layout is applied (Lab 7).
+          readinessProbe:
+            httpGet: {path: /health, port: admin}
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: config, mountPath: /etc/garage.toml, subPath: garage.toml}
+            - {name: data, mountPath: /var/lib/garage}
+      volumes:
+        - name: config
+          configMap:
+            name: garage
+        - name: data
+          persistentVolumeClaim:
+            claimName: garage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage
+  namespace: quay
+spec:
+  selector:
+    app: garage
+  ports:
+    - {name: s3, port: 3900, targetPort: s3}

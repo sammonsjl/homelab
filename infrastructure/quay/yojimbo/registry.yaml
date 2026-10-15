@@ -1,0 +1,51 @@
+# Quay, as a mirror of what this cluster installs from registry.redhat.io
+# (Lab 7), at https://quay.apps.lud.neokube.net.
+#
+# Everything a mirror does not need is switched off: Clair (vulnerability
+# scanning, the biggest part), the autoscaler, repository mirroring and the
+# monitoring hooks. Its object storage is Garage (garage.yaml). The route and
+# its TLS stay managed: the host is under *.apps.lud.neokube.net, so the route
+# gets the router's Let's Encrypt certificate and the node trusts it as it is.
+#
+# Its config, which holds Garage's key, is the quay-config secret, made by hand.
+apiVersion: quay.redhat.com/v1
+kind: QuayRegistry
+metadata:
+  name: registry
+  namespace: quay
+spec:
+  configBundleSecret: quay-config
+  components:
+    - kind: quay
+      managed: true
+      overrides:
+        replicas: 1
+        resources:
+          requests: {cpu: 50m, memory: 1Gi}
+          limits: {memory: 4Gi}
+    - kind: postgres
+      managed: true
+      overrides:
+        # On lud's own disk, like Garage: what is in the mirror can be mirrored again.
+        storageClassName: local-path
+        resources:
+          requests: {cpu: 20m, memory: 256Mi}
+          limits: {memory: 1Gi}
+    - kind: redis
+      managed: true
+    - kind: objectstorage
+      managed: false
+    - kind: route
+      managed: true
+    - kind: tls
+      managed: true
+    - kind: clair
+      managed: false
+    - kind: clairpostgres
+      managed: false
+    - kind: horizontalpodautoscaler
+      managed: false
+    - kind: mirror
+      managed: false
+    - kind: monitoring
+      managed: false
