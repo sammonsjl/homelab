@@ -106,5 +106,5 @@ A laptop cluster and a production cluster that are folders in one repository, an
 cluster that can be read: what runs on it, at which version, with which settings, and when each
 of those last changed and why.
 
-What is still done by hand is short, and worth knowing by heart: the three secrets of Lab 2, the
+What is still done by hand is short, and worth knowing by heart: the five secrets of Lab 2, the
 site itself, and whatever lives inside a database.

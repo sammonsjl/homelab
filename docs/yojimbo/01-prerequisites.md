@@ -74,6 +74,8 @@ ls clusters/yojimbo/apps
 | `cloudflare`            | `infrastructure/cloudflare`             | The tunnel that publishes neokube.net                   | 6   |
 | `aap-operator`          | `infrastructure/aap/operator`           | The Ansible Automation Platform operator                | 7   |
 | `aap`                   | `infrastructure/aap/yojimbo`            | The platform itself                                     | 7   |
+| `quay-operator`         | `infrastructure/quay/operator`          | The Red Hat Quay operator                               | 7   |
+| `quay`                  | `infrastructure/quay/yojimbo`           | The mirror AAP installs from, and its object storage    | 7   |
 | `homepage`              | `apps/homepage/yojimbo`                 | The portal, as on Bahamut, with this cluster's links    | 4   |
 
 Not in the repository: neokube.net itself, which is deployed from its own repository, and the
@@ -95,6 +97,7 @@ grep -rnE '192\.168\.1\.|neokube\.net|sammonsjl@' clusters/yojimbo infrastructur
 | `*.apps.lud.neokube.net`, `api.lud.neokube.net`, `lud.neokube.net` | `infrastructure/cert-manager/yojimbo` | The cluster's names: the ones you chose when you installed it |
 | The e-mail address            | `infrastructure/cert-manager/yojimbo/clusterissuers.yaml` | Where Let's Encrypt sends expiry warnings |
 | `aap.neokube.net`             | `infrastructure/aap/yojimbo`                        | The platform's address                      |
+| `quay.neokube.net`            | `infrastructure/quay/yojimbo`, `infrastructure/aap/operator`, `quay-config` | The mirror's address |
 | `home.apps.lud.neokube.net`   | `apps/homepage/yojimbo`                             | The portal's address, and its links         |
 
 Change them in your fork and commit. If there is a part you have nothing for, a NAS for
