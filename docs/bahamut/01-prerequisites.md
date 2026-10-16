@@ -9,16 +9,15 @@ Applications point at it. Nothing is installed on the cluster yet.
 
 |                    |                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **OpenShift Local** | Installed and started, with `oc` logged in as `kubeadmin`. Labs 1 and 2 of [Ansible Automation Platform on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local) do exactly this. |
+| **OpenShift Local** | Installed and started, with `oc` logged in as `kubeadmin`. Labs 1 and 2 of [Ghost on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local) do exactly this. |
 | **RAM**            | 16 GB on the workstation, 11 GB of it given to the cluster's VM.                                                             |
 | **A GitHub account** | Argo CD reads the cluster's contents from a repository you can push to. A public fork needs no credentials on the cluster.   |
 | **git**            | On the workstation.                                                                                                          |
 
-> **One cluster, one job.** If you did the module before this one, Ansible Automation Platform
-> is still on your cluster, and there is not enough memory for both. With the two installed
-> together on an 11 GB VM, the platform's database is left `Pending`. Remove the platform first
-> (Lab 99 of that module, "Remove the platform, keep the cluster"), or start again from an empty
-> cluster with `crc delete` and `crc start`.
+> **Start without the last module's Ghost.** If you did the module before this one, its Ghost is
+> still on your cluster. This module deploys the same Ghost, with the same names, from git.
+> Remove the old one first (Lab 99 of that module, "Remove Ghost, keep the cluster"), or start
+> again from an empty cluster with `crc delete` and `crc start`. Your posts go with it.
 
 Check where you are:
 
@@ -80,7 +79,7 @@ grep -rh repoURL clusters/bahamut | sort | uniq -c
 ```
 
 ```
-      4     repoURL: https://github.com/sammonsjl/homelab.git
+      5     repoURL: https://github.com/sammonsjl/homelab.git
 ```
 
 If you left them, your cluster would follow my commits and ignore yours. Change them, in both
@@ -94,7 +93,7 @@ git commit -am "Follow my fork"
 git push
 ```
 
-`git commit` should report 15 files changed: 4 for Bahamut and 11 for Yojimbo.
+`git commit` should report 20 files changed: 5 for Bahamut and 15 for Yojimbo.
 
 The branch each Application follows is on the next line of the same files:
 
@@ -103,7 +102,7 @@ grep -rh 'targetRevision: openshift' clusters/bahamut | sort | uniq -c
 ```
 
 ```
-      4     targetRevision: openshift-gitops
+      5     targetRevision: openshift-gitops
 ```
 
 Next: [Installing OpenShift GitOps](02-openshift-gitops.md)

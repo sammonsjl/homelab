@@ -1,0 +1,16 @@
+# The way in from the workstation. The router ends TLS with the cluster's own
+# certificate and sends plain HTTP on to Ghost.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  to:
+    kind: Service
+    name: ghost
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

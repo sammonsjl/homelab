@@ -13,8 +13,12 @@ published as modules 05 and 07 of the path on [neokube.net](https://neokube.net)
 
 | Cluster | Labs | Start here |
 |---|---|---|
-| Bahamut | Fork the repo, install OpenShift GitOps on OpenShift Local, apply the root Application, make a change through git | [`docs/bahamut`](docs/bahamut/01-prerequisites.md) |
+| Bahamut | Fork the repo, install OpenShift GitOps on OpenShift Local, apply the root Application, which deploys Ghost among others, and change it through git | [`docs/bahamut`](docs/bahamut/01-prerequisites.md) |
 | Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
+
+> **2026-10-16:** Bahamut now runs Ghost and its MySQL (`apps/ghost`), the same Ghost module 04
+> deploys by hand, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 1 to 4
+> and 99 of Bahamut were run with it from an empty OpenShift Local.
 
 > **Status, 2026-10-13: written from one test of each cluster, not yet followed from the text.**
 > On 2026-10-12 the commands in these labs were run on both clusters: Bahamut on an OpenShift
@@ -75,7 +79,7 @@ oc delete pods --all -n openshift-gitops
 oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
 ```
 
-For the same reason Bahamut does not share its 11 GB with Ansible Automation Platform: with both installed, the platform's database is left Pending.
+For the same reason Bahamut's 11 GB hold one Ghost: if the one from module 04 is still on the cluster, remove it first.
 
 The Applications are all created at once. One that needs something another one installs (an issuer needs cert-manager, the platform needs its operator) fails its first sync and retries until it goes through; that is what the `retry` block in each of them is for. Every Application syncs by itself, removes what is taken out of git (`prune`) and puts back what is changed by hand (`selfHeal`).
 
@@ -98,7 +102,7 @@ Secrets are kept in HashiCorp Vault on the NAS and are not in this repo. Yojimbo
 | `client-info-secret` | `synology-csi` | `client-info.yml` | `secrets/synology` |
 | `homepage-widgets` | `homepage` | `HOMEPAGE_VAR_PIHOLE_KEY`, `HOMEPAGE_VAR_SYNOLOGY_USERNAME`, `HOMEPAGE_VAR_SYNOLOGY_PASSWORD` | `secrets/pihole`, `secrets/synology` |
 
-Bahamut needs none.
+Bahamut needs one, made by hand before `root.yaml` (Lab 3 of Bahamut): `ghost-db` in `ghost`, with two random passwords, `root-password` and `password`.
 
 ## What runs where
 
@@ -108,8 +112,9 @@ Bahamut needs none.
 | cert-manager operator | ✅ | ✅ | `infrastructure/cert-manager/operator` |
 | Certificate issuers | a private CA | Let's Encrypt over DNS-01 at Cloudflare; certificates for the router, the API and the console | `infrastructure/cert-manager/<cluster>` |
 | Homepage | ✅ | ✅ | `apps/homepage` |
-| Uptime Kuma (Helm chart) | added, not yet run | ✅ `uptime.neokube.net` | `apps/uptime-kuma` |
-| Headlamp (Helm chart) | added, not yet run | ✅ `headlamp.neokube.net` | `apps/headlamp` |
+| Ghost and MySQL | ✅ `ghost.apps-crc.testing` | | `apps/ghost` |
+| Uptime Kuma (Helm chart) | | ✅ `uptime.neokube.net` | `apps/uptime-kuma` |
+| Headlamp (Helm chart) | | ✅ `headlamp.neokube.net` | `apps/headlamp` |
 | Synology CSI (iSCSI LUNs on the NAS, the default class) | | ✅ | `infrastructure/synology-csi` |
 | NFS CSI (folders on the NAS) | | ✅ | `infrastructure/nfs-csi` |
 | Local path (the node's own disk) | | ✅ | `infrastructure/local-path` |

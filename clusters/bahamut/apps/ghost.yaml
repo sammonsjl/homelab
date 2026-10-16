@@ -1,15 +1,16 @@
-# Uptime Kuma's namespace and Route. The chart is uptime-kuma.yaml.
+# Ghost, a blog, and the MySQL it keeps its posts in. The database passwords
+# are the one thing not in git: see apps/ghost/base/kustomization.yaml.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: uptime-kuma-config
+  name: ghost
   namespace: openshift-gitops
 spec:
   project: default
   source:
     repoURL: https://github.com/sammonsjl/homelab.git
     targetRevision: openshift-gitops
-    path: apps/uptime-kuma/bahamut
+    path: apps/ghost/bahamut
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:

@@ -1,0 +1,11 @@
+# Ghost and its MySQL, in the namespace ghost. One thing is not here: the
+# Secret ghost-db with the two database passwords. It is made by hand, once
+# (docs/bahamut, Lab 3), so that no password is in git.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ghost
+resources:
+  - namespace.yaml
+  - mysql.yaml
+  - ghost.yaml
+  - route.yaml

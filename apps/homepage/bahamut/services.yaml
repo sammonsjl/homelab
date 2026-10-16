@@ -7,11 +7,7 @@
         href: https://openshift-gitops-server-openshift-gitops.apps-crc.testing
         icon: argo-cd.png
         description: What git says this cluster should run
-    - Uptime Kuma:
-        href: https://uptime-kuma.apps-crc.testing
-        icon: uptime-kuma.png
-        description: Checks that things answer
-    - Headlamp:
-        href: https://headlamp.apps-crc.testing
-        icon: headlamp.png
-        description: A web UI for the cluster
+    - Ghost:
+        href: https://ghost.apps-crc.testing
+        icon: ghost.png
+        description: A blog, and the MySQL behind it

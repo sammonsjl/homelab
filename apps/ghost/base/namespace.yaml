@@ -1,0 +1,6 @@
+# Everything in these labs lives in one namespace. Deleting it removes all of
+# it, the database volume's claim included.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ghost

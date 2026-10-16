@@ -1,0 +1,110 @@
+# Ghost itself: the official image, run as the user it was built for, inside a
+# user namespace of its own. Why, and what OpenShift does with it, is Lab 4 of
+# https://github.com/sammonsjl/aap-on-openshift-local
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ghost-content
+  namespace: ghost
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ghost
+  namespace: ghost
+  labels:
+    app.kubernetes.io/name: ghost
+spec:
+  selector:
+    app.kubernetes.io/name: ghost
+  ports:
+    - name: http
+      port: 2368
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+  namespace: ghost
+  labels:
+    app.kubernetes.io/name: ghost
+spec:
+  replicas: 1
+  # The content volume is ReadWriteOnce, and Ghost must not run twice against
+  # one database: the old pod stops before the new one starts.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ghost
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ghost
+    spec:
+      # Run in a user namespace. Inside it Ghost is the image's own user,
+      # node (1000); on the node it is an unprivileged ID of OpenShift's
+      # choosing. This is what the restricted-v3 SCC asks for.
+      hostUsers: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: ghost
+          image: docker.io/library/ghost:6.70.0
+          env:
+            # Ghost reads its settings from variables named after the keys of
+            # its configuration file, with __ between the levels.
+            # url, the address Ghost puts in its links, is set by each
+            # cluster's overlay.
+            - name: database__client
+              value: mysql
+            - name: database__connection__host
+              value: mysql
+            - name: database__connection__user
+              value: ghost
+            - name: database__connection__password
+              valueFrom:
+                secretKeyRef: {name: ghost-db, key: password}
+            - name: database__connection__database
+              value: ghost
+          ports:
+            - name: http
+              containerPort: 2368
+          volumeMounts:
+            - name: content
+              mountPath: /var/lib/ghost/content
+          # Ghost answers plain HTTP with a redirect to its https url unless
+          # the request says it came in over https, as the router's do.
+          startupProbe:
+            httpGet:
+              path: /ghost/api/admin/site/
+              port: http
+              httpHeaders:
+                - {name: X-Forwarded-Proto, value: https}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /ghost/api/admin/site/
+              port: http
+              httpHeaders:
+                - {name: X-Forwarded-Proto, value: https}
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 768Mi}
+      volumes:
+        - name: content
+          persistentVolumeClaim:
+            claimName: ghost-content

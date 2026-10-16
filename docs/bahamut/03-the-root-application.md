@@ -2,8 +2,9 @@
 
 ## What you will have at the end
 
-Four Applications, synced from your fork: the root, the cert-manager operator, a private
-certificate authority, and a portal page served at `https://homepage.apps-crc.testing`.
+Five Applications, synced from your fork: the root, the cert-manager operator, a private
+certificate authority, a portal page served at `https://homepage.apps-crc.testing`, and Ghost
+with its database at `https://ghost.apps-crc.testing`.
 
 ## One Application that holds the others
 
@@ -35,8 +36,8 @@ spec:
       selfHeal: true
 ```
 
-The folder it names, `clusters/bahamut/apps`, contains three more Applications. So applying this
-one file creates the root, the root creates the other three, and each of those creates what is
+The folder it names, `clusters/bahamut/apps`, contains four more Applications. So applying this
+one file creates the root, the root creates the other four, and each of those creates what is
 in its own folder. This is known as the *app of apps* pattern. Adding a component to the cluster
 later is one new file in `clusters/bahamut/apps`.
 
@@ -48,6 +49,23 @@ The three lines under `syncPolicy` are what make it hands-off:
 | `prune`     | Delete from the cluster what has been deleted from git               |
 | `selfHeal`  | Undo a change made on the cluster by hand                            |
 
+## The one thing not in git
+
+Ghost's database needs two passwords, and a password in a public fork is a password for
+everyone. They go on the cluster by hand, once, before Argo CD is told about Ghost:
+
+```bash
+oc create namespace ghost
+oc create secret generic ghost-db -n ghost \
+  --from-literal=root-password="$(openssl rand -hex 16)" \
+  --from-literal=password="$(openssl rand -hex 16)"
+```
+
+This is the same secret as in the last module's Lab 3. Argo CD will take over the namespace,
+because `apps/ghost/base/namespace.yaml` describes it, and leave the secret alone, because
+nothing in git describes that. If you forget it, MySQL and Ghost wait in
+`CreateContainerConfigError` until it exists, and then start by themselves.
+
 ## Apply it
 
 ```bash
@@ -55,15 +73,19 @@ oc apply -f clusters/bahamut/root.yaml
 oc get applications -n openshift-gitops -w
 ```
 
-Within a few minutes all four settle. Press Ctrl-C when they have:
+Within a few minutes all five settle. Press Ctrl-C when they have:
 
 ```
 NAME                    SYNC STATUS   HEALTH STATUS
 bahamut                 Synced        Healthy
 cert-manager            Synced        Healthy
 cert-manager-operator   Synced        Healthy
+ghost                   Synced        Healthy
 homepage                Synced        Healthy
 ```
+
+`ghost` is the slowest: it shows `Progressing` while MySQL creates its database and Ghost its
+tables, a few minutes on the first start.
 
 > On the first test run for this lab, on a laptop that was short of memory, `cert-manager-operator`
 > stayed `Degraded` while cert-manager itself was installed and issuing. On the second run, and on
@@ -72,7 +94,7 @@ homepage                Synced        Healthy
 
 ## Order without ordering
 
-All three Applications are created at the same moment, yet one depends on another:
+All four Applications are created at the same moment, yet one depends on another:
 `cert-manager` holds a `ClusterIssuer`, a kind of object that does not exist until the operator
 from `cert-manager-operator` has installed cert-manager. Nothing in the repository says which
 goes first. Instead, every Application carries this:
@@ -94,13 +116,14 @@ the operator has caught up. `SkipDryRunOnMissingResource` stops Argo CD from ref
 sync up front for the same reason. You may have seen `cert-manager` report `OutOfSync` or
 `Missing` for a minute in the watch above. That was this.
 
-## What the three Applications made
+## What the four Applications made
 
 | Application             | Folder                                 | What it is                                              |
 | ----------------------- | -------------------------------------- | ------------------------------------------------------- |
 | `cert-manager-operator` | `infrastructure/cert-manager/operator` | A Subscription, like the one in `bootstrap/`. Shared with Yojimbo |
 | `cert-manager`          | `infrastructure/cert-manager/bahamut`  | A self-signed root and an issuer that signs with it     |
 | `homepage`              | `apps/homepage/bahamut`                | [Homepage](https://gethomepage.dev), a page of links to what the cluster runs |
+| `ghost`                 | `apps/ghost/bahamut`                   | [Ghost](https://ghost.org) and its MySQL: the manifests of the last module, as a base and an overlay |
 
 Bahamut's names end in `apps-crc.testing` and exist only on your workstation, so a public
 certificate authority has nothing to check. Bahamut gets a private one instead:
@@ -126,8 +149,29 @@ curl -sk -o /dev/null -w '%{http_code}\n' https://homepage.apps-crc.testing/
 200
 ```
 
-Open `https://homepage.apps-crc.testing` in a browser. It links to the OpenShift console and to
-Argo CD, where the four Applications now show as a tree.
+Open `https://homepage.apps-crc.testing` in a browser. It links to the OpenShift console, to
+Ghost, and to Argo CD, where the five Applications now show as a tree.
+
+Ghost:
+
+```bash
+oc get pods,route -n ghost
+curl -sk https://ghost.apps-crc.testing/ghost/api/admin/site/ | grep -o '"version":"[^"]*"'
+```
+
+```
+NAME                         READY   STATUS    RESTARTS   AGE
+pod/ghost-6c7b8d9f4-2xk8p    1/1     Running   2          5m
+pod/mysql-0                  1/1     Running   0          5m
+
+NAME                             HOST/PORT                PATH   SERVICES   PORT   TERMINATION     WILDCARD
+route.route.openshift.io/ghost   ghost.apps-crc.testing          ghost      http   edge/Redirect   None
+"version":"6.70"
+```
+
+It is a new Ghost, with no owner yet. Make one at `https://ghost.apps-crc.testing/ghost/`, as in
+the last module. That account and any post you write are in MySQL, not in git: Argo CD keeps the
+Deployment equal to git, not what the blog has in it.
 
 ## Base and overlay
 

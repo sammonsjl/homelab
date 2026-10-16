@@ -22,8 +22,9 @@ so commits made while the cluster was off arrive when it starts.
 crc delete
 ```
 
-This deletes the VM and its disk. Nothing of Bahamut is lost with it: the cluster's contents are
-in your fork. `crc start`, then Labs 2 and 3, and it is back.
+This deletes the VM and its disk. Nothing of Bahamut's setup is lost with it: the cluster's
+contents are in your fork. `crc start`, then Labs 2 and 3, and it is back. What Ghost had in its
+database is not in the fork, and goes with the VM.
 
 ## If you take it apart by hand
 
@@ -37,15 +38,21 @@ N=openshift-gitops
 # 1. The root first, so that it does not put the others back
 oc delete application bahamut -n $N
 
-# 2. The other three, each taking what it made with it
-for app in cert-manager homepage cert-manager-operator; do
+# 2. Ghost's volumes keep their data when their claims go (the storage class
+#    says Retain). Let them go with the claims
+for pv in $(oc get pvc -n ghost -o jsonpath='{.items[*].spec.volumeName}'); do
+  oc patch pv $pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Delete"}}'
+done
+
+# 3. The other four, each taking what it made with it
+for app in cert-manager homepage ghost cert-manager-operator; do
   oc patch application $app -n $N --type merge \
     -p '{"metadata":{"finalizers":["resources-finalizer.argocd.argoproj.io"]}}'
 done
-oc delete application cert-manager homepage -n $N
+oc delete application cert-manager homepage ghost -n $N
 oc delete application cert-manager-operator -n $N
 
-# 3. The GitOps operator, then its instance
+# 4. The GitOps operator, then its instance
 oc delete subscription openshift-gitops-operator -n openshift-gitops-operator
 oc delete csv --all -n openshift-gitops-operator
 oc delete namespace openshift-gitops openshift-gitops-operator cert-manager --wait=false

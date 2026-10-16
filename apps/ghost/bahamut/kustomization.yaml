@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base/
+patches:
+  - target:
+      kind: Route
+      name: ghost
+    patch: |
+      - op: add
+        path: /spec/host
+        value: ghost.apps-crc.testing
+  - target:
+      kind: Deployment
+      name: ghost
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: url
+          value: https://ghost.apps-crc.testing

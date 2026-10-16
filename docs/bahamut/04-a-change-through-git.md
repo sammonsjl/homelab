@@ -2,8 +2,8 @@
 
 ## What you will have at the end
 
-A change that reached the cluster with no `oc` command, and a change made on the cluster by hand
-that Argo CD reversed.
+A change that reached the cluster with no `oc` command, a change made on the cluster by hand that
+Argo CD reversed, and Ghost upgraded by a commit.
 
 ## Change something in git
 
@@ -93,6 +93,58 @@ differs from git without waiting for the three-minute poll.
 
 This cuts both ways. A fix made with `oc edit` on a managed object lasts seconds. From here on,
 a fix is a commit.
+
+## Upgrade Ghost through git
+
+The last module ended with Ghost upgraded by `oc set image`, and a file that still named the old
+version. Here the file is the only place the version is set:
+
+```bash
+grep image: apps/ghost/base/ghost.yaml
+```
+
+```
+          image: docker.io/library/ghost:6.70.0
+```
+
+Change it, and push:
+
+```bash
+sed -i 's#ghost:6.70.0#ghost:6.71.0#' apps/ghost/base/ghost.yaml
+git commit -am "ghost: 6.71.0"
+git push
+oc annotate application ghost -n openshift-gitops argocd.argoproj.io/refresh=normal
+oc get application ghost -n openshift-gitops -w
+```
+
+The Application goes `OutOfSync`, then `Synced` and `Progressing` while the old pod stops and
+the new one migrates the database, then `Healthy`. Press Ctrl-C, and ask Ghost:
+
+```bash
+curl -sk https://ghost.apps-crc.testing/ghost/api/admin/site/ | grep -o '"version":"[^"]*"'
+oc logs deploy/ghost -n ghost | grep -i migration
+```
+
+```
+"version":"6.71"
+WARN Database state requires migration.
+INFO Running migrations.
+```
+
+Try the last module's way, and see what becomes of it:
+
+```bash
+oc set image deployment/ghost -n ghost ghost=docker.io/library/ghost:6.70.0
+oc get deployment ghost -n ghost -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+```
+
+```
+docker.io/library/ghost:6.71.0
+```
+
+`selfHeal` put the commit's version back before the old image could start. Rolling back for real
+is a commit too, with the same warning as before: an older Ghost cannot read a database a newer
+one has migrated.
 
 ## What you have
 
