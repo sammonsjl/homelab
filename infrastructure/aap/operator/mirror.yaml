@@ -1,0 +1,46 @@
+# The cluster's side of the mirror (Lab 7): written from what oc-mirror leaves
+# in working-dir/cluster-resources, narrowed.
+#
+# oc-mirror's own ImageDigestMirrorSet and ImageTagMirrorSet send all of
+# registry.redhat.io to Quay, by digest and by tag. By tag that would include
+# redhat/redhat-operator-index:v4.22, the redhat-operators catalog, which would
+# then get the copy that holds only AAP. Here only what the AAP operator names
+# goes to Quay, and only by digest, which is how the operator names it. Anything
+# Quay does not have is still fetched from registry.redhat.io.
+apiVersion: config.openshift.io/v1
+kind: ImageDigestMirrorSet
+metadata:
+  name: aap-mirror
+spec:
+  imageDigestMirrors:
+    - source: registry.redhat.io/ansible-automation-platform-26
+      mirrors: [quay.neokube.net/ansible-automation-platform-26]
+    - source: registry.redhat.io/ansible-automation-platform-tech-preview
+      mirrors: [quay.neokube.net/ansible-automation-platform-tech-preview]
+    - source: registry.redhat.io/ansible-automation-platform/platform-operator-bundle
+      mirrors: [quay.neokube.net/ansible-automation-platform/platform-operator-bundle]
+    - source: registry.redhat.io/rhel9/postgresql-15
+      mirrors: [quay.neokube.net/rhel9/postgresql-15]
+    - source: registry.redhat.io/rhel9/redis-6
+      mirrors: [quay.neokube.net/rhel9/redis-6]
+    - source: registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9
+      mirrors: [quay.neokube.net/openshift4/ose-kube-rbac-proxy-rhel9]
+    - source: registry.redhat.io/ubi9-minimal
+      mirrors: [quay.neokube.net/ubi9-minimal]
+---
+# oc-mirror's copy of Red Hat's catalog, cut down to the AAP operator. The
+# Subscription in operator.yaml names it; redhat-operators stays for the rest.
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: aap-mirror
+  namespace: openshift-marketplace
+spec:
+  displayName: AAP (mirror)
+  image: quay.neokube.net/redhat/redhat-operator-index:v4.22
+  sourceType: grpc
+  # A new oc-mirror run replaces the image behind the tag; this is how soon
+  # the cluster notices.
+  updateStrategy:
+    registryPoll:
+      interval: 10m

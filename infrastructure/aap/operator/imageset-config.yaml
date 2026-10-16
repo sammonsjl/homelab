@@ -1,0 +1,16 @@
+# What oc-mirror copies into the mirror (Lab 7): the AAP operator's package from
+# Red Hat's catalog, the head of its channel, and every image that version
+# names. Not applied to the cluster, so not in kustomization.yaml.
+#   oc-mirror --v2 -c infrastructure/aap/operator/imageset-config.yaml \
+#     --workspace file://$HOME/.cache/oc-mirror/aap docker://quay.neokube.net
+kind: ImageSetConfiguration
+apiVersion: mirror.openshift.io/v2alpha1
+mirror:
+  operators:
+    - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.22
+      packages:
+        - name: ansible-automation-platform-operator
+          # The catalog's default is stable-2.7; the copy must name one it keeps.
+          defaultChannel: stable-2.6
+          channels:
+            - name: stable-2.6
