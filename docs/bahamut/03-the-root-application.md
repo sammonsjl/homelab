@@ -85,7 +85,9 @@ homepage                Synced        Healthy
 ```
 
 `ghost` is the slowest: it shows `Progressing` while MySQL creates its database and Ghost its
-tables, a few minutes on the first start.
+tables, a few minutes on the first start. Ghost starts at the same moment as MySQL, finds no
+database, stops, and is started again: two or three restarts are the same order-without-ordering
+as below, one level down.
 
 > On the first test run for this lab, on a laptop that was short of memory, `cert-manager-operator`
 > stayed `Degraded` while cert-manager itself was installed and issuing. On the second run, and on
@@ -160,9 +162,9 @@ curl -sk https://ghost.apps-crc.testing/ghost/api/admin/site/ | grep -o '"versio
 ```
 
 ```
-NAME                         READY   STATUS    RESTARTS   AGE
-pod/ghost-6c7b8d9f4-2xk8p    1/1     Running   2          5m
-pod/mysql-0                  1/1     Running   0          5m
+NAME                       READY   STATUS    RESTARTS      AGE
+pod/ghost-8955dc4b-vltlc   1/1     Running   3 (75s ago)   106s
+pod/mysql-0                1/1     Running   0             77s
 
 NAME                             HOST/PORT                PATH   SERVICES   PORT   TERMINATION     WILDCARD
 route.route.openshift.io/ghost   ghost.apps-crc.testing          ghost      http   edge/Redirect   None
@@ -187,7 +189,7 @@ Each cluster's folder is a [Kustomize](https://kustomize.io) overlay: it pulls i
 changes only what differs. To see what an Application applies, build its folder yourself:
 
 ```bash
-oc kustomize apps/homepage/bahamut | grep -E '^kind:|host:'
+oc kustomize apps/homepage/bahamut | grep -E '^kind:| host:'
 ```
 
 Next: [A Change Through Git](04-a-change-through-git.md)

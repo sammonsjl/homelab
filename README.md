@@ -17,8 +17,9 @@ published as modules 05 and 07 of the path on [neokube.net](https://neokube.net)
 | Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
 
 > **2026-10-16:** Bahamut now runs Ghost and its MySQL (`apps/ghost`), the same Ghost module 04
-> deploys by hand, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 1 to 4
-> and 99 of Bahamut were run with it from an empty OpenShift Local.
+> deploys by hand, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 2 to 4
+> and 99 of Bahamut were run with it on a new OpenShift Local, by Claude, from a branch that only
+> Bahamut followed. Lab 1's fork was not run (it would be a fork of the same account).
 
 > **Status, 2026-10-13: written from one test of each cluster, not yet followed from the text.**
 > On 2026-10-12 the commands in these labs were run on both clusters: Bahamut on an OpenShift

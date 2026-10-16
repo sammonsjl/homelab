@@ -117,8 +117,9 @@ oc annotate application ghost -n openshift-gitops argocd.argoproj.io/refresh=nor
 oc get application ghost -n openshift-gitops -w
 ```
 
-The Application goes `OutOfSync`, then `Synced` and `Progressing` while the old pod stops and
-the new one migrates the database, then `Healthy`. Press Ctrl-C, and ask Ghost:
+The Application goes `Progressing` (with a moment of `OutOfSync`, if you are quick) while the
+old pod stops and the new one migrates the database, then `Healthy`; under twenty seconds on the
+test run. Press Ctrl-C, and ask Ghost:
 
 ```bash
 curl -sk https://ghost.apps-crc.testing/ghost/api/admin/site/ | grep -o '"version":"[^"]*"'
@@ -135,16 +136,31 @@ Try the last module's way, and see what becomes of it:
 
 ```bash
 oc set image deployment/ghost -n ghost ghost=docker.io/library/ghost:6.70.0
+oc get pods -n ghost -l app.kubernetes.io/name=ghost -w
+```
+
+Watch for a minute, then press Ctrl-C and look again:
+
+```bash
 oc get deployment ghost -n ghost -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+curl -sk https://ghost.apps-crc.testing/ghost/api/admin/site/ | grep -o '"version":"[^"]*"'
 ```
 
 ```
 docker.io/library/ghost:6.71.0
+"version":"6.71"
 ```
 
-`selfHeal` put the commit's version back before the old image could start. Rolling back for real
-is a commit too, with the same warning as before: an older Ghost cannot read a database a newer
-one has migrated.
+`selfHeal` put the commit's version back within seconds. It did not stop what your change had
+already set off. On the test run, the Deployment acted on `6.70.0` at once: with `Recreate` it
+stopped the running Ghost and started an old one against the migrated database, then, when
+Argo CD put `6.71.0` back, stopped that one and started a new 6.71.0. The site was down for about
+45 seconds, for a change that lasted five.
+
+`selfHeal` undoes a change; it does not undo what the change did in the meantime. A fix by hand
+on a managed object is not just short-lived, it can cost a restart. Rolling back for real is a
+commit too, with the same warning as before: an older Ghost cannot read a database a newer one
+has migrated.
 
 ## What you have
 
