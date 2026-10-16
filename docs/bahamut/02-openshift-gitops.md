@@ -48,7 +48,7 @@ Repeat until the first shows `Succeeded` and the second lists `openshift-gitops`
 
 ```
 NAME                                DISPLAY                    VERSION   PHASE
-openshift-gitops-operator.v1.22.1   Red Hat OpenShift GitOps   1.22.1    Succeeded
+openshift-gitops-operator.v1.22.2   Red Hat OpenShift GitOps   1.22.2    Succeeded
 
 NAME               AGE
 openshift-gitops   40s
@@ -135,13 +135,26 @@ operator made it.
 
 The operator rolls the pods out again with the smaller requests, and the rollout gets stuck: a
 new pod cannot start until an old one stops, and an old one is not stopped until a new one is
-ready. Remove the old ones yourself:
+ready. Remove the old ones yourself, but not before the operator has passed the new requests on.
+Wait until the controller's StatefulSet asks for `128Mi`:
+
+```bash
+oc get statefulset openshift-gitops-application-controller -n openshift-gitops \
+  -o jsonpath='{.spec.template.spec.containers[0].resources.requests.memory}{"\n"}'
+```
+
+Repeat until it prints `128Mi`; it takes a few seconds. Then:
 
 ```bash
 oc delete pods --all -n openshift-gitops
 oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
 oc get pods -n openshift-gitops
 ```
+
+> **If the wait times out with the controller still `Pending`,** its pod was made again from the
+> old StatefulSet: on the 2026-10-16 test run the pods were deleted straight after the
+> `oc apply`, and the new controller pod still asked for 1 Gi. Check the StatefulSet as above,
+> then delete that one pod: `oc delete pod openshift-gitops-application-controller-0 -n openshift-gitops`.
 
 Every pod should be `Running`, and the applicationset controller gone.
 

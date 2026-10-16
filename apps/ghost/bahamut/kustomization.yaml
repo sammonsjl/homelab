@@ -1,3 +1,8 @@
+# OpenShift Local at 11 GB has almost no memory left to reserve once Argo CD is
+# in (see clusters/bahamut/argocd.yaml), and MySQL is left Pending at the
+# base's 256Mi. The two requests are halved here. Requests only decide where a
+# pod may be scheduled: MySQL uses about 300 MB and Ghost about 270 MB either
+# way, and the limits are unchanged.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
@@ -19,3 +24,13 @@ patches:
         value:
           name: url
           value: https://ghost.apps-crc.testing
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi
+  - target:
+      kind: StatefulSet
+      name: mysql
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: 128Mi

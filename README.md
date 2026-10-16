@@ -71,10 +71,12 @@ oc get applications -n openshift-gitops -w
 
 The first command returns before the operator has created its Argo CD instance, so the `oc wait` fails with "not found" for the first minute or two; repeat it until it waits.
 
-**Bahamut only**, before `root.yaml`: OpenShift Local at 11 GB has almost no memory left to reserve, Argo CD's controller stays Pending, and the `oc wait` above never returns. As soon as `oc get argocd -n openshift-gitops` lists the instance, trim it, remove the pods that started with the larger reservation so the smaller ones can be scheduled, and wait then:
+**Bahamut only**, before `root.yaml`: OpenShift Local at 11 GB has almost no memory left to reserve, Argo CD's controller stays Pending, and the `oc wait` above never returns. As soon as `oc get argocd -n openshift-gitops` lists the instance, trim it, wait until the operator has passed the smaller requests on to the controller's StatefulSet, remove the pods that started with the larger reservation so the smaller ones can be scheduled, and wait then:
 
 ```bash
 oc apply -f clusters/bahamut/argocd.yaml
+oc get statefulset openshift-gitops-application-controller -n openshift-gitops \
+  -o jsonpath='{.spec.template.spec.containers[0].resources.requests.memory}{"\n"}'   # repeat until 128Mi
 oc delete pods --all -n openshift-gitops
 oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
 ```
