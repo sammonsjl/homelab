@@ -9,7 +9,7 @@ spec:
     - protocol: HTTP
       port: 80
       name: http
-      # The site's HTTPRoute lives in its own namespace (liferay), not here.
+      # The site's HTTPRoute lives in its own namespace (ghost, apps/ghost/yojimbo), not here.
       allowedRoutes:
         namespaces:
           from: All
