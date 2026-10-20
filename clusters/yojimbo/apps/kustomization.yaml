@@ -6,6 +6,7 @@ resources:
   - cert-manager-operator.yaml
   - cert-manager.yaml
   - cloudflare.yaml
+  - ghost.yaml
   - headlamp-config.yaml
   - headlamp.yaml
   - homepage.yaml
