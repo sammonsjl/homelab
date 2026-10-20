@@ -8,10 +8,10 @@ sized to share a 32 GB machine with a site.
 
 ## Four Applications
 
-If you did [Ansible Automation Platform on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local),
-you installed this by hand: a Subscription for the operator, then one
+Installing the platform on OpenShift takes two steps: a Subscription for the operator, then one
 `AnsibleAutomationPlatform` object that the operator turns into a gateway, a controller, a
-database and the rest. Here the same two steps are two Applications. Two more put a mirror in
+database and the rest. [By hand, once](#by-hand-once) takes both steps yourself, in a namespace
+of their own, and then throws the result away. After that, the same two steps are two Applications. Two more put a mirror in
 front of them, so that what the operator installs comes from the cluster's own registry and not
 from Red Hat's.
 
@@ -297,6 +297,205 @@ oc debug node/lud -- chroot /host crictl rmi $hub
 
 The node asked for `registry.redhat.io`, and Quay answered.
 
+## By hand, once
+
+Before git takes over, install the platform the way you would on any OpenShift cluster with no
+Argo CD: with `oc`, step by step, watching what each step makes. It goes in a namespace of its
+own, `aap-by-hand`, so that it never touches the platform the next sections hand to git, and it
+installs from the mirror's catalog, `aap-mirror`, like the real one. At the end it is deleted.
+
+It needs room: it uses about 3.6 GiB of memory while it runs, beside the real platform.
+
+### The operator
+
+An operator is installed by subscribing to it. Three objects: the namespace, an
+`OperatorGroup` that says which namespaces the operator may manage (only its own), and the
+`Subscription` that names the package, the channel and the catalog:
+
+```bash
+oc create namespace aap-by-hand
+oc apply -f - <<'EOF'
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: aap-by-hand
+  namespace: aap-by-hand
+spec:
+  targetNamespaces:
+    - aap-by-hand
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ansible-automation-platform-operator
+  namespace: aap-by-hand
+spec:
+  name: ansible-automation-platform-operator
+  channel: stable-2.6
+  source: aap-mirror
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Manual
+  config:
+    resources:
+      requests: {cpu: 10m, memory: 64Mi}
+      limits: {memory: 2Gi}
+EOF
+```
+
+`installPlanApproval: Manual` makes OLM, the Operator Lifecycle Manager, stop and ask. It resolves
+the Subscription into an `InstallPlan`, a list of everything it would create, and waits:
+
+```bash
+oc get installplan -n aap-by-hand
+```
+
+```
+NAME            CSV                                APPROVAL   APPROVED
+install-g66jz   aap-operator.v2.6.0-0.1789677985   Manual     false
+```
+
+Read what it would install, then approve it:
+
+```bash
+oc get installplan -n aap-by-hand -o jsonpath='{range .items[0].status.plan[*]}{.resource.kind}{"\n"}{end}' \
+  | sort | uniq -c | sort -rn
+```
+
+```
+     29 CustomResourceDefinition
+      7 ServiceAccount
+      7 RoleBinding
+      7 Role
+      6 ClusterRoleBinding
+      6 ClusterRole
+      1 ClusterServiceVersion
+```
+
+Twenty-nine new kinds of object, one of them `AnsibleAutomationPlatform`, and permissions for the
+seven controller managers the package holds. The roles and kinds are cluster-wide, and they are
+already there: the `aap` namespace's operator brought the same ones. That is why the version has
+to be the same one, from the same catalog.
+
+```bash
+oc patch $(oc get installplan -n aap-by-hand -o name) -n aap-by-hand \
+  --type merge -p '{"spec":{"approved":true}}'
+```
+
+The plan's result is a `ClusterServiceVersion`, the operator's installed version. It is ready
+when its phase is `Succeeded`:
+
+```bash
+oc get csv -n aap-by-hand -w
+oc get pods -n aap-by-hand
+```
+
+It took under a minute on `lud`, for `aap-operator.v2.6.0-0.1789677985`; the name is the version
+your mirror holds. Every namespace also lists the OpenShift GitOps CSV: an
+operator installed for all namespaces appears in each one. The seven pods are the managers,
+`aap-gateway-operator-controller-manager`, `automation-controller-operator-…` and the rest, each
+waiting for an object of its kind.
+
+### The platform
+
+The platform is one object. This one is `platform.yaml` without what belongs to production: no
+name of its own (the router gives it one under `*.apps`), its database on `local-path`, since it
+will be thrown away, and only the gateway and the controller:
+
+```bash
+oc apply -f - <<'EOF'
+apiVersion: aap.ansible.com/v1alpha1
+kind: AnsibleAutomationPlatform
+metadata:
+  name: aap
+  namespace: aap-by-hand
+spec:
+  api:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 384Mi}
+  proxy:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 128Mi}
+  database:
+    postgres_storage_class: local-path
+  hub:
+    disabled: true
+  eda:
+    disabled: true
+  mcp:
+    disabled: true
+  lightspeed:
+    disabled: true
+EOF
+```
+
+Watch the operator work:
+
+```bash
+oc get pods -n aap-by-hand -w
+```
+
+The gateway operator makes the database and Redis, then the gateway, and hands the controller its
+own object, which the controller's operator turns into a migration job and two deployments. On
+`lud` it took about fourteen minutes to the platform's `Successful` condition:
+
+```bash
+oc get aap aap -n aap-by-hand -o jsonpath='{.status.conditions[?(@.type=="Successful")].status}{"\n"}'
+oc get pods -n aap-by-hand | grep -v operator
+oc get route -n aap-by-hand
+```
+
+```
+True
+NAME                                    READY   STATUS      RESTARTS   AGE
+aap-controller-migration-4.7.17-fqm5s   0/1     Completed   0          5m23s
+aap-controller-task-7b77c95db4-gs86x    4/4     Running     0          5m43s
+aap-controller-web-fbd88977d-664w6      3/3     Running     0          5m46s
+aap-gateway-57bc78f784-xv982            2/2     Running     0          8m44s
+aap-postgres-15-0                       1/1     Running     0          9m36s
+aap-redis-0                             1/1     Running     0          9m48s
+```
+
+The routes are `aap-aap-by-hand.apps.lud.neokube.net`, the platform's front door, and one for the
+controller alone. Ask the gateway, then sign in as `admin` with the password the operator made:
+
+```bash
+host=$(oc get route aap -n aap-by-hand -o jsonpath='{.spec.host}')
+password=$(oc get secret aap-admin-password -n aap-by-hand -o jsonpath='{.data.password}' | base64 -d)
+curl -s -o /dev/null -w '%{http_code}\n' https://$host/api/gateway/v1/ping/
+curl -s -u admin:"$password" https://$host/api/controller/v2/ping/ | jq -r .version
+```
+
+```
+200
+4.7.17
+```
+
+A working platform, about 3.6 GiB of memory in use, from four objects you wrote by hand.
+
+### Throwing it away
+
+Delete the platform first, so that its operators clean up what they made, then the operator,
+then the namespace:
+
+```bash
+oc delete aap aap -n aap-by-hand
+csv=$(oc get subscription ansible-automation-platform-operator -n aap-by-hand -o jsonpath='{.status.installedCSV}')
+oc delete subscription ansible-automation-platform-operator -n aap-by-hand
+oc delete csv $csv -n aap-by-hand
+oc delete namespace aap-by-hand
+```
+
+The Subscription is how the operator was asked for, the CSV is the operator itself: deleting
+only the first leaves the operator running.
+
+Under a minute. Two things stay, on purpose. The `CustomResourceDefinition`s are cluster-wide and
+the `aap` namespace's operator uses the same ones; OLM never deletes them. And `local-path`
+deletes its volume with the claim, so the throwaway database is gone with the namespace; a
+`synology-iscsi` volume would have stayed on the NAS (Lab 5).
+
+That was the whole install: three objects for the operator, one for the platform. The rest of
+this lab writes the same four into git and lets Argo CD apply them.
+
 ## The operator
 
 ```bash
@@ -357,9 +556,9 @@ storage, at what name. Everything inside it is in its database: the subscription
 first login, organizations, credentials, projects, job templates and their history.
 
 A reinstall from git therefore gives you an empty platform at the right address, unless the
-database's LUN is still on the NAS and is attached again. The job templates on `lud`, which back
-up the site every night and test the restore, are created by playbooks in this repository's
-[`ansible/`](../../ansible/README.md) folder, so they can be put back by running those again.
+database's LUN is still on the NAS and is attached again. Job templates can be kept as code too:
+the ones that backed up the site every night while it ran on Liferay are created by playbooks in
+this repository's [`ansible/`](../../ansible/README.md) folder, and are put back by running those again.
 
 The mirror is the other way round: git holds what it should contain, `imageset-config.yaml`, and
 not the copy. Quay's database and Garage's volume are on `lud`'s own disk, so a reinstall starts
