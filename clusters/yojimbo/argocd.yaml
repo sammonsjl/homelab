@@ -13,6 +13,26 @@ spec:
   # Nothing here uses ApplicationSets.
   applicationSet:
     enabled: false
+  # Argo CD calls an HTTPRoute healthy once a gateway controller has written
+  # its status. The Cloudflare tunnel's controller never writes one, so
+  # neokube.net's HTTPRoute (apps/ghost/yojimbo) would leave the ghost
+  # Application Progressing for ever. Healthy unless a controller says no.
+  resourceHealthChecks:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      check: |
+        hs = {status = "Healthy", message = "No gateway status (the Cloudflare controller writes none)"}
+        if obj.status ~= nil and obj.status.parents ~= nil then
+          for _, parent in ipairs(obj.status.parents) do
+            for _, c in ipairs(parent.conditions or {}) do
+              if c.type == "Accepted" and c.status == "False" then
+                hs.status = "Degraded"
+                hs.message = c.message
+              end
+            end
+          end
+        end
+        return hs
   controller:
     resources:
       requests: {cpu: 100m, memory: 768Mi}
