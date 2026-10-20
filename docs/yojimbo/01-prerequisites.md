@@ -72,14 +72,15 @@ ls clusters/yojimbo/apps
 | `cert-manager-operator` | `infrastructure/cert-manager/operator`  | The same folder Bahamut uses                            | 6   |
 | `cert-manager`          | `infrastructure/cert-manager/yojimbo`   | Let's Encrypt, and certificates for the router and the API | 6 |
 | `cloudflare`            | `infrastructure/cloudflare`             | The tunnel that publishes neokube.net                   | 6   |
+| `ghost`                 | `apps/ghost/yojimbo`                    | neokube.net itself: Ghost and its MySQL, Bahamut's own with this site's address | 6   |
 | `aap-operator`          | `infrastructure/aap/operator`           | The Ansible Automation Platform operator                | 7   |
 | `aap`                   | `infrastructure/aap/yojimbo`            | The platform itself                                     | 7   |
 | `quay-operator`         | `infrastructure/quay/operator`          | The Red Hat Quay operator                               | 7   |
 | `quay`                  | `infrastructure/quay/yojimbo`           | The mirror AAP installs from, and its object storage    | 7   |
 | `homepage`              | `apps/homepage/yojimbo`                 | The portal, as on Bahamut, with this cluster's links    | 4   |
 
-Not in the repository: neokube.net itself, which is deployed from its own repository, and the
-secrets of the next lab.
+Not in the repository: what neokube.net's Ghost holds (its lessons are written in their own
+repositories and synced into Ghost), and the secrets of the next lab.
 
 ## What is mine in these folders
 
@@ -99,6 +100,7 @@ grep -rnE '192\.168\.1\.|neokube\.net|sammonsjl@' clusters/yojimbo infrastructur
 | `aap.neokube.net`             | `infrastructure/aap/yojimbo`                        | The platform's address                      |
 | `quay.neokube.net`            | `infrastructure/quay/yojimbo`, `infrastructure/aap/operator`, `quay-config` | The mirror's address |
 | `home.apps.lud.neokube.net`   | `apps/homepage/yojimbo`                             | The portal's address, and its links         |
+| `neokube.net`                 | `apps/ghost/yojimbo`                                | The site: Ghost's address, its certificate and its public name on the tunnel |
 
 Change them in your fork and commit. If there is a part you have nothing for, a NAS for
 instance, take its line out of `clusters/yojimbo/apps/kustomization.yaml` and the Application is

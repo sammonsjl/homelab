@@ -2,13 +2,13 @@
 
 ## What you will have at the end
 
-The five secrets the Applications expect, on the cluster and nowhere in git.
+The six secrets the Applications expect, on the cluster and nowhere in git.
 
 ## Why these are done by hand
 
 The repository is public, and a `Secret` in Kubernetes is only encoded, not encrypted. There are
 tools that close this gap, by encrypting secrets in git or by fetching them from a vault at sync
-time. This cluster uses neither yet. Five secrets are made by hand, once, and the Applications
+time. This cluster uses neither yet. Six secrets are made by hand, once, and the Applications
 refer to them by name:
 
 | Secret                 | Namespace      | Keys                  | Used by                                         |
@@ -18,6 +18,7 @@ refer to them by name:
 | `client-info-secret`   | `synology-csi` | `client-info.yml`     | The storage driver, to log in to the NAS        |
 | `garage`               | `quay`         | `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` | Garage, the mirror's object storage |
 | `quay-config`          | `quay`         | `config.yaml`         | Quay, the mirror: its name and Garage's key     |
+| `ghost-db`             | `ghost`        | `root-password`, `password` | neokube.net's MySQL, and Ghost to log in to it |
 
 Until a secret exists, the component that needs it does not start, and its Application is not
 `Healthy`. Nothing else is held up by it.
@@ -102,12 +103,12 @@ openssl rand -base64 18                  # QUAY_ADMIN_PASSWORD
 
 ## Create them
 
-On a new cluster the four namespaces do not exist yet. Create them first; the Applications
+On a new cluster the five namespaces do not exist yet. Create them first; the Applications
 adopt a namespace that is already there. On a cluster where these components are already
 running, the namespaces and the secrets exist and this lab is a check.
 
 ```bash
-for namespace in cert-manager cloudflare synology-csi quay; do
+for namespace in cert-manager cloudflare synology-csi quay ghost; do
   oc get namespace $namespace >/dev/null 2>&1 || oc create namespace $namespace
 done
 ```
@@ -143,6 +144,15 @@ rm /tmp/config.yaml
 
 The same `secrets/quay` holds `QUAY_ADMIN_PASSWORD`, for `quayadmin` in Lab 7.
 
+`ghost-db` is two random passwords, as on Bahamut, and is not in Vault: nothing outside the
+cluster needs them. MySQL creates its `ghost` user with the second one the first time it starts.
+
+```bash
+oc create secret generic ghost-db -n ghost \
+  --from-literal=root-password="$(openssl rand -hex 24)" \
+  --from-literal=password="$(openssl rand -hex 24)"
+```
+
 Without Vault, put the values where the `$(vault ...)` calls are, and write `client-info.yml` and
 `config.yaml` yourself.
 
@@ -153,6 +163,7 @@ oc get secret cloudflare-api-token -n cert-manager -o name
 oc get secret cloudflare -n cloudflare -o name
 oc get secret client-info-secret -n synology-csi -o name
 oc get secret garage quay-config -n quay -o name
+oc get secret ghost-db -n ghost -o name
 ```
 
 ```
@@ -161,9 +172,10 @@ secret/cloudflare
 secret/client-info-secret
 secret/garage
 secret/quay-config
+secret/ghost-db
 ```
 
-> These five are the part of the cluster that a rebuild from git does not bring back. Keep the
+> These six are the part of the cluster that a rebuild from git does not bring back. Keep the
 > values somewhere that is not the cluster.
 
 Next: [Before the First Sync](03-before-the-first-sync.md)

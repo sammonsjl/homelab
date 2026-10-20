@@ -14,7 +14,7 @@ Both clusters follow the same branch. What a commit touches decides who notices:
 | `clusters/bahamut`, or a folder named `bahamut`                 | Yes     | No      |
 | `clusters/yojimbo`, or a folder named `yojimbo`                 | No      | Yes     |
 | A folder only Yojimbo uses: storage, the tunnel, the platform   | No      | Yes     |
-| A shared folder: `infrastructure/cert-manager/operator`, `apps/homepage/base` | Yes | Yes |
+| A shared folder: `infrastructure/cert-manager/operator`, `apps/homepage/base`, `apps/ghost/base` | Yes | Yes |
 
 An Application only looks at its own `path`. A commit elsewhere moves the branch, and the
 Application notes the new commit and changes nothing.
@@ -40,8 +40,8 @@ Read the diff with the question from Lab 3: is every line something I meant?
 ## A change to a shared folder
 
 The last row of the table is where Bahamut earns its keep. A change to the shared base of the
-portal, or a new version of the cert-manager operator, reaches production the moment it is on
-the branch. To see it on Bahamut first, put it on a branch of its own and point Bahamut at that
+portal, a new version of the cert-manager operator, or a new Ghost in `apps/ghost/base` (Bahamut's
+Ghost and neokube.net are one base) reaches production the moment it is on the branch. To see it on Bahamut first, put it on a branch of its own and point Bahamut at that
 branch.
 
 > **Not yet run as written.** The steps below follow from how the Applications are built, and

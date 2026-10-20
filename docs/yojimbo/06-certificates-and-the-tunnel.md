@@ -107,7 +107,7 @@ Nobody writes that pod's configuration. A controller turns Gateway API objects i
 | ---------------------------- | ------------------------- | ---------------------------------------------- |
 | `GatewayClass` `cloudflare`  | `infrastructure/cloudflare` | Names the controller and the secret from Lab 2 |
 | `Gateway` `gateway`          | `infrastructure/cloudflare` | A tunnel in my Cloudflare account, and a `cloudflared` Deployment connected to it |
-| `HTTPRoute` `neokube-net`    | The site's own repository | A public host name on the tunnel and its DNS record, pointing at the site's Service |
+| `HTTPRoute` `neokube-net`    | `apps/ghost/yojimbo`      | A public host name on the tunnel and its DNS record, pointing at Ghost's Service |
 
 ```bash
 oc get gatewayclass,gateway -A
@@ -120,7 +120,7 @@ and `cloudflared`. The last command lists the one route:
 
 ```
 NAMESPACE   NAME          HOSTNAMES         AGE
-liferay     neokube-net   ["neokube.net"]   8d
+ghost       neokube-net   ["neokube.net"]   11m
 ```
 
 The route is in the site's namespace and the gateway in another, and that is the setting Lab 3

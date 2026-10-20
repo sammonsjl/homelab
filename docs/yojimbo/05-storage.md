@@ -38,21 +38,20 @@ oc get pvc -A -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.nam
 ```
 
 ```
-NAMESPACE                  NAME                                          CAPACITY   STORAGECLASS
-aap                        neokube-backups                               20Gi       nfs-csi
-aap                        postgres-15-aap-postgres-15-0                 8Gi        synology-iscsi
-liferay-restore            data-liferay-default-database-0               5Gi        local-path
-liferay-restore            data-liferay-default-search-0                 5Gi        local-path
-liferay-restore            liferay-persistent-volume-liferay-default-0   10Gi       local-path
-liferay                    data-liferay-default-database-0               5Gi        synology-iscsi
-liferay                    data-liferay-default-search-0                 5Gi        local-path
-liferay                    liferay-document-library                      10Gi       nfs-csi
-liferay                    liferay-persistent-volume-liferay-default-0   10Gi       synology-iscsi
-openshift-image-registry   image-registry-nfs                            30Gi       nfs-csi
+NAMESPACE                  NAME                            CAPACITY   STORAGECLASS
+aap                        neokube-backups                 20Gi       nfs-csi
+aap                        postgres-15-aap-postgres-15-0   8Gi        synology-iscsi
+ghost                      data-mysql-0                    5Gi        synology-iscsi
+ghost                      ghost-content                   1Gi        synology-iscsi
+openshift-image-registry   image-registry-nfs              30Gi       nfs-csi
+quay                       garage                          100Gi      local-path
+quay                       registry-quay-postgres-13       50Gi       local-path
+uptime-kuma                uptime-kuma-pvc                 1Gi        synology-iscsi
 ```
 
-`liferay-restore` is the nightly restore rehearsal: a copy that is thrown away, so it is on
-`local-path`.
+neokube.net's two volumes, its database and Ghost's content folder (the theme and the pictures),
+are on the NAS: neither asks for a class, so they get the default. Quay's are on the node's own
+disk on purpose: everything in the mirror is a copy that `oc-mirror` makes again (Lab 7).
 
 ## iSCSI needs something from the node
 
