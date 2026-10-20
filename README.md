@@ -105,7 +105,7 @@ Secrets are kept in HashiCorp Vault on the NAS and are not in this repo. Yojimbo
 | `client-info-secret` | `synology-csi` | `client-info.yml` | `secrets/synology` |
 | `homepage-widgets` | `homepage` | `HOMEPAGE_VAR_PIHOLE_KEY`, `HOMEPAGE_VAR_SYNOLOGY_USERNAME`, `HOMEPAGE_VAR_SYNOLOGY_PASSWORD` | `secrets/pihole`, `secrets/synology` |
 
-Bahamut needs one, made by hand before `root.yaml` (Lab 3 of Bahamut): `ghost-db` in `ghost`, with two random passwords, `root-password` and `password`.
+Bahamut needs one, made by hand before `root.yaml` (Lab 3 of Bahamut): `ghost-db` in `ghost`, with two random passwords, `root-password` and `password`. Yojimbo has the same Secret, made the same way, for neokube.net.
 
 ## What runs where
 
@@ -115,7 +115,7 @@ Bahamut needs one, made by hand before `root.yaml` (Lab 3 of Bahamut): `ghost-db
 | cert-manager operator | ✅ | ✅ | `infrastructure/cert-manager/operator` |
 | Certificate issuers | a private CA | Let's Encrypt over DNS-01 at Cloudflare; certificates for the router, the API and the console | `infrastructure/cert-manager/<cluster>` |
 | Homepage | ✅ | ✅ | `apps/homepage` |
-| Ghost and MySQL | ✅ `ghost.apps-crc.testing` | | `apps/ghost` |
+| Ghost and MySQL | ✅ `ghost.apps-crc.testing` | ✅ `neokube.net` (since 2026-10-20) | `apps/ghost` |
 | Uptime Kuma (Helm chart) | | ✅ `uptime.neokube.net` | `apps/uptime-kuma` |
 | Headlamp (Helm chart) | | ✅ `headlamp.neokube.net` | `apps/headlamp` |
 | Synology CSI (iSCSI LUNs on the NAS, the default class) | | ✅ | `infrastructure/synology-csi` |
@@ -125,7 +125,12 @@ Bahamut needs one, made by hand before `root.yaml` (Lab 3 of Bahamut): `ghost-db
 | Cloudflare tunnel | | ✅ | `infrastructure/cloudflare` |
 | Ansible Automation Platform | no room | ✅ | `infrastructure/aap` |
 
-Not in this repo: neokube.net itself (Liferay), which is deployed to Yojimbo with Helm from its own repository, and the image registry's volume.
+Not in this repo: the image registry's volume, and what neokube.net's Ghost holds. The site's lessons and pages are
+synced into Ghost from `neokube/content` in the Social Office workspace (`scripts/neokube-ghost-sync.py`, checked with
+`scripts/neokube-check-ghost.py`); the theme ([sammonsjl/neokube](https://github.com/sammonsjl/neokube), `ghost-theme/`),
+`settings/routes.yaml` (modules at `/module/<tag>/`) and `data/redirects.yaml` (the Liferay addresses `/b/<slug>`) are
+files on Ghost's content volume, copied in with `oc exec ... tar`, and take effect when the Ghost pod restarts.
+neokube.net ran on Liferay from 2026-10-07 to 2026-10-20.
 
 ## :computer: Hardware
 
@@ -141,4 +146,4 @@ The [Synology CSI driver](https://github.com/SynologyOpenSource/synology-csi) pr
 
 ## Backups
 
-Ansible Automation Platform on Yojimbo backs up neokube.net to the NAS every night and tests the restore. See [`ansible/`](ansible/README.md).
+Ansible Automation Platform on Yojimbo backed up neokube.net to the NAS every night while the site ran on Liferay, and tested the restore. See [`ansible/`](ansible/README.md). **Since the move back to Ghost (2026-10-20) nothing backs the site up on a schedule:** the playbooks are Liferay's, and AAP was reinstalled on 2026-10-16 without a subscription. A Ghost backup taken by hand is in `~/projects/backups/ghost-20261020-lud-cutover/` on the NAS.
