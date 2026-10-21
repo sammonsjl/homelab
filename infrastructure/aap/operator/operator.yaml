@@ -19,7 +19,7 @@ metadata:
   namespace: aap
 spec:
   name: ansible-automation-platform-operator
-  channel: stable-2.6
+  channel: stable-2.7
   source: aap-mirror
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
