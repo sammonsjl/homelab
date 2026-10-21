@@ -14,19 +14,24 @@ published as modules 05 and 07 of the path on [neokube.net](https://neokube.net)
 | Cluster | Labs | Start here |
 |---|---|---|
 | Bahamut | Fork the repo, install OpenShift GitOps on OpenShift Local, apply the root Application, which deploys Ghost among others, and change it through git | [`docs/bahamut`](docs/bahamut/01-prerequisites.md) |
-| Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
+| Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform, its upgrade from 2.6 to 2.7, and its backup and restore | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
 
 > **2026-10-16:** Bahamut now runs Ghost and its MySQL (`apps/ghost`), the same Ghost module 04
 > deploys by hand, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 2 to 4
 > and 99 of Bahamut were run with it on a new OpenShift Local, by Claude, from a branch that only
 > Bahamut followed. Lab 1's fork was not run (it would be a fork of the same account).
 
+> **2026-10-21:** Yojimbo has two new labs, 8 (upgrading the platform from AAP 2.6 to 2.7) and
+> 9 (backup and restore), and the old Lab 8 is now Lab 10. Both were written from a run on `lud`
+> by Claude the same day: the upgrade through the two commits Lab 8 describes, and a backup
+> restored beside the running platform. Restoring over the platform itself was not run.
+
 > **Status, 2026-10-13: written from one test of each cluster, not yet followed from the text.**
 > On 2026-10-12 the commands in these labs were run on both clusters: Bahamut on an OpenShift
 > Local VM that already held another install, Yojimbo by handing the running cluster on `lud` to
 > Argo CD. The labs were written afterwards from that run. Nobody has followed them from the
 > page. Not run at all: Bahamut on an empty cluster and from a fork, Yojimbo from an empty
-> cluster (Lab 4 says so), the branch routine in Yojimbo's Lab 8, and any of it on OKD. Red Hat's catalog for OKD 5.0 does
+> cluster (Lab 4 says so), the branch routine in Yojimbo's Lab 10, and any of it on OKD. Red Hat's catalog for OKD 5.0 does
 > carry the three operators these clusters install (checked 2026-10-13).
 
 ## Clusters

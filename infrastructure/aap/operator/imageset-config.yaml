@@ -10,8 +10,8 @@ mirror:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.22
       packages:
         - name: ansible-automation-platform-operator
-          # stable-2.7 is also the catalog's default. The copy holds only this
-          # channel: the operator was upgraded from stable-2.6 on 2026-10-21.
+          # A copy must name a default channel that it holds. Lab 7 installs
+          # from stable-2.6, Lab 8 upgrades to stable-2.7.
           defaultChannel: stable-2.7
           channels:
             - name: stable-2.7

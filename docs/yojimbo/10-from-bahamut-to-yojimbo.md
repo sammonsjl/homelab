@@ -1,4 +1,4 @@
-# Lab 8 — From Bahamut to Yojimbo
+# Lab 10 — From Bahamut to Yojimbo
 
 ## What you will have at the end
 

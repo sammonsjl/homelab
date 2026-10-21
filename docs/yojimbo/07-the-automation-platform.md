@@ -191,9 +191,17 @@ could pull them from `registry.redhat.io` with a Red Hat login. Pushing still ta
 ### Filling it
 
 `oc-mirror` copies images from one registry to another. What it copies is written down in an
-`ImageSetConfiguration`, next to the Subscription that uses the copy:
+`ImageSetConfiguration`, next to the Subscription that uses the copy.
+
+This repository is one lab ahead of you: it already holds the change of
+[Lab 8](08-upgrading-to-aap-2.7.md), which moves the platform from AAP 2.6 to 2.7. This lab
+installs 2.6, so that Lab 8 has something to upgrade. Put the two channel names back and commit:
 
 ```bash
+sed -i -E 's/(Channel|channel|name): stable-2\.7/\1: stable-2.6/' \
+  infrastructure/aap/operator/imageset-config.yaml infrastructure/aap/operator/operator.yaml
+git commit -am "AAP: install 2.6 first"
+git push
 cat infrastructure/aap/operator/imageset-config.yaml
 ```
 
@@ -205,7 +213,8 @@ mirror:
     - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.22
       packages:
         - name: ansible-automation-platform-operator
-          # The catalog's default is stable-2.7; the copy must name one it keeps.
+          # A copy must name a default channel that it holds. Lab 7 installs
+          # from stable-2.6, Lab 8 upgrades to stable-2.7.
           defaultChannel: stable-2.6
           channels:
             - name: stable-2.6
@@ -266,7 +275,9 @@ other operator on the cluster would lose its catalog.
 
 `infrastructure/aap/operator/mirror.yaml` is the same two objects written narrowly: an
 `ImageDigestMirrorSet` that names AAP's repositories and the four others the operator uses, and
-no `ImageTagMirrorSet`, because the operator names its images by digest.
+no `ImageTagMirrorSet`, because the operator names its images by digest. Its first entry,
+`ansible-automation-platform-27`, is Lab 8's. Until then nothing asks for those images, and an
+entry nobody uses does nothing.
 
 ```bash
 cat infrastructure/aap/operator/mirror.yaml
@@ -586,4 +597,7 @@ is new, and writes `cluster-resources` again. Compare them with `mirror.yaml`; i
 source appears, add it, then commit. The catalog's pod notices the new catalog within ten
 minutes, and the operator upgrades as it did before the mirror.
 
-Next: [From Bahamut to Yojimbo](08-from-bahamut-to-yojimbo.md)
+That covers updates within 2.6. A new minor version, 2.7, is a new channel, and the next lab
+moves the platform to it.
+
+Next: [Upgrading to AAP 2.7](08-upgrading-to-aap-2.7.md)
