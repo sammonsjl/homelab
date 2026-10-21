@@ -13,6 +13,8 @@ metadata:
   name: aap-mirror
 spec:
   imageDigestMirrors:
+    - source: registry.redhat.io/ansible-automation-platform-27
+      mirrors: [quay.neokube.net/ansible-automation-platform-27]
     - source: registry.redhat.io/ansible-automation-platform-26
       mirrors: [quay.neokube.net/ansible-automation-platform-26]
     - source: registry.redhat.io/ansible-automation-platform-tech-preview
