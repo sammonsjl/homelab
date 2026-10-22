@@ -10,11 +10,11 @@ terraform {
     }
     flux = {
       source  = "fluxcd/flux"
-      version = "1.9.5"
+      version = "1.9.6"
     }
     vault = {
       source  = "hashicorp/vault"
-      version = "5.12.0"
+      version = "5.13.0"
     }
   }
 }
