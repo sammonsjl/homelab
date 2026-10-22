@@ -9,15 +9,42 @@ Applications point at it. Nothing is installed on the cluster yet.
 
 |                    |                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| **OpenShift Local** | Installed and started, with `oc` logged in as `kubeadmin`. Labs 1 and 2 of [Ghost on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local) do exactly this. |
+| **OpenShift Local** | `crc` installed, with your pull secret at `~/.crc/pull-secret.json`. Lab 1 of [AAP on MicroShift](https://github.com/sammonsjl/aap-on-openshift-local) sets both up. Below you switch it from MicroShift to full OpenShift. |
 | **RAM**            | 16 GB on the workstation, 11 GB of it given to the cluster's VM.                                                             |
 | **A GitHub account** | Argo CD reads the cluster's contents from a repository you can push to. A public fork needs no credentials on the cluster.   |
 | **git**            | On the workstation.                                                                                                          |
 
-> **Start without the last module's Ghost.** If you did the module before this one, its Ghost is
-> still on your cluster. This module deploys the same Ghost, with the same names, from git.
-> Remove the old one first (Lab 99 of that module, "Remove Ghost, keep the cluster"), or start
-> again from an empty cluster with `crc delete` and `crc start`. Your posts go with it.
+## Start OpenShift Local
+
+The module before this one ran MicroShift, OpenShift Local's small preset. Bahamut needs full
+OpenShift: OpenShift GitOps comes from OpenShift's own operator catalog and expects the console,
+OAuth and the cluster operators around it. OpenShift Local builds one kind of cluster at a time,
+so delete the MicroShift one (and the platform on it) and switch the preset:
+
+```bash
+crc delete
+crc config set preset openshift
+crc config set memory 11264
+crc config set cpus 6
+crc config set disk-size 80
+crc setup
+crc start
+```
+
+`crc setup` downloads the OpenShift bundle (~6 GB) the first time. `crc start` takes about five
+minutes: it boots the VM and waits for the cluster operators to settle. Then put `oc` on your path
+and switch to the administrator's context:
+
+```bash
+eval $(crc oc-env)
+oc config use-context crc-admin
+```
+
+If you skipped the last module, set up `crc` as its Lab 1 describes, then run the commands above
+from `crc config set preset openshift`. If `crc start` gives up with `Failed to connect to the CRC
+VM with SSH`, your firmware has the boot fault that the last module's
+[Lab 2](https://github.com/sammonsjl/aap-on-openshift-local/blob/main/docs/02-cluster.md#start-it)
+describes, with its fix.
 
 Check where you are:
 

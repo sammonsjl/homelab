@@ -1,6 +1,6 @@
 # Ghost itself: the official image, run as the user it was built for, inside a
 # user namespace of its own. Why, and what OpenShift does with it, is Lab 4 of
-# https://github.com/sammonsjl/aap-on-openshift-local
+# https://github.com/sammonsjl/aap-on-openshift-local/blob/ghost-on-openshift-local/docs/04-ghost.md
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

@@ -96,8 +96,8 @@ a fix is a commit.
 
 ## Upgrade Ghost through git
 
-The last module ended with Ghost upgraded by `oc set image`, and a file that still named the old
-version. Here the file is the only place the version is set:
+Without git, Ghost is upgraded with `oc set image`, and the file it was deployed from goes on
+naming the old version. Here the file is the only place the version is set:
 
 ```bash
 grep image: apps/ghost/base/ghost.yaml
@@ -132,7 +132,7 @@ WARN Database state requires migration.
 INFO Running migrations.
 ```
 
-Try the last module's way, and see what becomes of it:
+Try the way without git, and see what becomes of it:
 
 ```bash
 oc set image deployment/ghost -n ghost ghost=docker.io/library/ghost:6.70.0

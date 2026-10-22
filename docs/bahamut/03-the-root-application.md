@@ -61,7 +61,7 @@ oc create secret generic ghost-db -n ghost \
   --from-literal=password="$(openssl rand -hex 16)"
 ```
 
-This is the same secret as in the last module's Lab 3. Argo CD will take over the namespace,
+MySQL and Ghost read their passwords from it. Argo CD will take over the namespace,
 because `apps/ghost/base/namespace.yaml` describes it, and leave the secret alone, because
 nothing in git describes that. If you forget it, MySQL and Ghost wait in
 `CreateContainerConfigError` until it exists, and then start by themselves.
@@ -125,7 +125,7 @@ sync up front for the same reason. You may have seen `cert-manager` report `OutO
 | `cert-manager-operator` | `infrastructure/cert-manager/operator` | A Subscription, like the one in `bootstrap/`. Shared with Yojimbo |
 | `cert-manager`          | `infrastructure/cert-manager/bahamut`  | A self-signed root and an issuer that signs with it     |
 | `homepage`              | `apps/homepage/bahamut`                | [Homepage](https://gethomepage.dev), a page of links to what the cluster runs |
-| `ghost`                 | `apps/ghost/bahamut`                   | [Ghost](https://ghost.org) and its MySQL: the manifests of the last module, as a base and an overlay |
+| `ghost`                 | `apps/ghost/bahamut`                   | [Ghost](https://ghost.org) and its MySQL, as a base and an overlay. The manifests are explained in [Ghost on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local/tree/ghost-on-openshift-local), an earlier version of module 04 |
 
 Bahamut's names end in `apps-crc.testing` and exist only on your workstation, so a public
 certificate authority has nothing to check. Bahamut gets a private one instead:
@@ -171,8 +171,8 @@ route.route.openshift.io/ghost   ghost.apps-crc.testing          ghost      http
 "version":"6.70"
 ```
 
-It is a new Ghost, with no owner yet. Make one at `https://ghost.apps-crc.testing/ghost/`, as in
-the last module. That account and any post you write are in MySQL, not in git: Argo CD keeps the
+It is a new Ghost, with no owner yet. Make one at `https://ghost.apps-crc.testing/ghost/`. That
+account and any post you write are in MySQL, not in git: Argo CD keeps the
 Deployment equal to git, not what the blog has in it.
 
 ## Base and overlay

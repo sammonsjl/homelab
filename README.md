@@ -17,9 +17,14 @@ published as modules 05 and 07 of the path on [neokube.net](https://neokube.net)
 | Yojimbo | Secrets, a dry run before the first sync, handing a running cluster to git, then storage, certificates, the tunnel and the automation platform, its upgrade from 2.6 to 2.7, and its backup and restore | [`docs/yojimbo`](docs/yojimbo/01-prerequisites.md) |
 
 > **2026-10-16:** Bahamut now runs Ghost and its MySQL (`apps/ghost`), the same Ghost module 04
-> deploys by hand, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 2 to 4
+> deployed by hand then, in place of Uptime Kuma and Headlamp, which had never run on it. Labs 2 to 4
 > and 99 of Bahamut were run with it on a new OpenShift Local, by Claude, from a branch that only
 > Bahamut followed. Lab 1's fork was not run (it would be a fork of the same account).
+>
+> **2026-10-21:** module 04 is now AAP on MicroShift, so Bahamut's Lab 1 switches OpenShift Local
+> from the `microshift` preset to `openshift` itself. Module 04's Ghost is kept as the tag
+> `ghost-on-openshift-local` of `aap-on-openshift-local`. Those `crc` commands were not run on this
+> date; the ones they replace were, on 2026-10-16.
 
 > **2026-10-21:** Yojimbo has two new labs, 8 (upgrading the platform from AAP 2.6 to 2.7) and
 > 9 (backup and restore), and the old Lab 8 is now Lab 10. Both were written from a run on `lud`
@@ -87,7 +92,7 @@ oc delete pods --all -n openshift-gitops
 oc wait --for=jsonpath='{.status.phase}'=Available argocd/openshift-gitops -n openshift-gitops --timeout=10m
 ```
 
-For the same reason Bahamut's 11 GB hold one Ghost: if the one from module 04 is still on the cluster, remove it first.
+For the same reason Bahamut starts from a new OpenShift Local: Lab 1 deletes module 04's MicroShift cluster first.
 
 The Applications are all created at once. One that needs something another one installs (an issuer needs cert-manager, the platform needs its operator) fails its first sync and retries until it goes through; that is what the `retry` block in each of them is for. Every Application syncs by itself, removes what is taken out of git (`prune`) and puts back what is changed by hand (`selfHeal`).
 
