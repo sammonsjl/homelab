@@ -1,0 +1,40 @@
+# A second platform beside the one in `aap`, to try things on first.
+# It gets its own copy of the operator: each OperatorGroup watches only its own
+# namespace, so the two never touch each other's resources, and this one can
+# be moved to a new channel before production is.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aap-test
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: aap-test
+  namespace: aap-test
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  targetNamespaces:
+    - aap-test
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ansible-automation-platform-operator
+  namespace: aap-test
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  name: ansible-automation-platform-operator
+  channel: stable-2.7
+  source: aap-mirror
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  # Same as production (infrastructure/aap/operator/operator.yaml).
+  config:
+    resources:
+      requests: {cpu: 10m, memory: 64Mi}
+      limits: {memory: 2Gi}

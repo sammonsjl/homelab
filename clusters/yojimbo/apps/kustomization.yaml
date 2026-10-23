@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - aap-operator.yaml
   - aap.yaml
+  - aap-test.yaml
   - cert-manager-operator.yaml
   - cert-manager.yaml
   - cloudflare.yaml

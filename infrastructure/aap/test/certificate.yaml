@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: aap
+  namespace: aap-test
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: aap-test-neokube-net-tls
+  dnsNames:
+    - aap-test.neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt

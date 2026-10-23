@@ -1,0 +1,29 @@
+# The same platform as production (infrastructure/aap/yojimbo/platform.yaml),
+# at https://aap-test.neokube.net. Keep the two alike, so that what works
+# here works there. A copy asks lud for about 1.3 CPU and 3.5Gi in requests.
+apiVersion: aap.ansible.com/v1alpha1
+kind: AnsibleAutomationPlatform
+metadata:
+  name: aap
+  namespace: aap-test
+spec:
+  route_host: aap-test.neokube.net
+  route_tls_termination_mechanism: Edge
+  route_tls_secret: aap-test-neokube-net-tls
+  api:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 384Mi}
+  proxy:
+    resource_requirements:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: "256"}
+  database:
+    postgres_storage_class: synology-iscsi
+  hub:
+    disabled: true
+  eda:
+    disabled: true
+  mcp:
+    disabled: false
+  lightspeed:
+    disabled: true
