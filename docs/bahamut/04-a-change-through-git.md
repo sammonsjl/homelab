@@ -96,6 +96,15 @@ a fix is a commit.
 
 ## Upgrade Ghost through git
 
+> **If a production cluster already follows this branch, do not push this commit.**
+> `apps/ghost/base` is not Bahamut's alone: Yojimbo, in module 07, builds its Ghost from the same
+> folder. A reader taking the modules in order has no Yojimbo yet, and nothing else reads it. If you
+> are coming back to Bahamut with a Yojimbo whose Argo CD follows this repository and branch, this
+> push upgrades that Ghost too, and its database migration cannot be undone. Read this section
+> without running it, or first point Bahamut at a branch of its own, as Yojimbo's
+> [Lab 10](../yojimbo/10-from-bahamut-to-yojimbo.md#a-change-to-a-shared-folder) does with
+> `try-homepage`.
+
 Without git, Ghost is upgraded with `oc set image`, and the file it was deployed from goes on
 naming the old version. Here the file is the only place the version is set:
 
