@@ -97,7 +97,7 @@ a fix is a commit.
 ## Upgrade Ghost through git
 
 > **If a production cluster already follows this branch, do not push this commit.**
-> `apps/ghost/base` is not Bahamut's alone: Yojimbo, in module 07, builds its Ghost from the same
+> `apps/ghost/base` is not Bahamut's alone: Yojimbo, in module 08, builds its Ghost from the same
 > folder. A reader taking the modules in order has no Yojimbo yet, and nothing else reads it. If you
 > are coming back to Bahamut with a Yojimbo whose Argo CD follows this repository and branch, this
 > push upgrades that Ghost too, and its database migration cannot be undone. Read this section

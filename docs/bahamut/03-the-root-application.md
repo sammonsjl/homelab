@@ -125,7 +125,7 @@ sync up front for the same reason. You may have seen `cert-manager` report `OutO
 | `cert-manager-operator` | `infrastructure/cert-manager/operator` | A Subscription, like the one in `bootstrap/`. Shared with Yojimbo |
 | `cert-manager`          | `infrastructure/cert-manager/bahamut`  | A self-signed root and an issuer that signs with it     |
 | `homepage`              | `apps/homepage/bahamut`                | [Homepage](https://gethomepage.dev), a page of links to what the cluster runs |
-| `ghost`                 | `apps/ghost/bahamut`                   | [Ghost](https://ghost.org) and its MySQL, as a base and an overlay. The manifests are explained in [Ghost on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local/tree/ghost-on-openshift-local), an earlier version of module 04 |
+| `ghost`                 | `apps/ghost/bahamut`                   | [Ghost](https://ghost.org) and its MySQL, as a base and an overlay. The manifests are explained in [Ghost on OpenShift Local](https://github.com/sammonsjl/aap-on-openshift-local/tree/ghost-on-openshift-local), an earlier version of module 05 |
 
 Bahamut's names end in `apps-crc.testing` and exist only on your workstation, so a public
 certificate authority has nothing to check. Bahamut gets a private one instead:

@@ -23,7 +23,7 @@ leave out the rest.
 |                      |                                                                                                                             |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **The cluster**      | Single-node OKD or OpenShift on a real machine with 32 GB of RAM, and `oc` logged in as a cluster administrator. The module before this one, [OKD on One Machine](https://github.com/sammonsjl/okd-single-node), installs it. |
-| **Bahamut**          | Module 05, done. You have a fork, and its Applications point at it.                                                          |
+| **Bahamut**          | Module 06, done. You have a fork, and its Applications point at it.                                                          |
 | **A storage server** | Mine is a Synology NAS. The cluster makes iSCSI LUNs on it through its API, and folders on one NFS share.                    |
 | **A domain at Cloudflare** | For certificates from Let's Encrypt without opening a port, and for the tunnel that publishes one site.                |
 | **A place for secrets** | Mine is HashiCorp Vault on the NAS. A password manager does the same job here.                                            |
