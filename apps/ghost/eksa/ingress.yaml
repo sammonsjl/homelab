@@ -1,0 +1,22 @@
+# The way in from the LAN. Traefik ends TLS with the Let's Encrypt certificate and sends
+# plain HTTP to Ghost, with X-Forwarded-Proto: https, which Ghost needs to not redirect.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ghost
+  namespace: ghost
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [neokube.net]
+      secretName: neokube-net-tls
+  rules:
+    - host: neokube.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ghost
+                port: {name: http}

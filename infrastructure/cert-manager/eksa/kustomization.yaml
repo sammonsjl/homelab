@@ -1,0 +1,6 @@
+# Let's Encrypt for lud's EKS Anywhere cluster. cert-manager itself is EKS Anywhere's own.
+# Needs the secret cloudflare-api-token in cert-manager (key token), made by hand from Vault.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - clusterissuers.yaml

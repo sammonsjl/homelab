@@ -1,0 +1,25 @@
+# Let's Encrypt ClusterIssuers (DNS-01 at Cloudflare). The secret cloudflare-api-token in cert-manager is made by hand first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: letsencrypt
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: eksa-lud
+    path: infrastructure/cert-manager/eksa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 20
+      backoff: {duration: 30s, factor: 2, maxDuration: 3m}

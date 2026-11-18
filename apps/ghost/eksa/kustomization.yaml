@@ -1,0 +1,34 @@
+# neokube.net on lud's EKS Anywhere cluster (Bottlerocket, six nodes), since 2026-11-18.
+# The same Ghost and MySQL as Bahamut's and Yojimbo's (../base), less what only
+# OpenShift has:
+#   - no Route: from the LAN, Traefik serves neokube.net (ingress.yaml); from the
+#     internet, the Cloudflare tunnel does (httproute.yaml)
+#   - no user namespace (hostUsers: false): that was for OpenShift's restricted-v3 SCC
+# The site's content is not here: it is synced into Ghost from neokube/content in the
+# Social Office workspace (scripts/neokube-ghost-sync.py), and the theme and redirects
+# are files on the content volume.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../base/
+  - certificate.yaml
+  - ingress.yaml
+  - httproute.yaml
+patches:
+  - target: {kind: Route, name: ghost}
+    patch: |
+      $patch: delete
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: ghost
+        namespace: ghost
+  - target: {kind: Deployment, name: ghost}
+    patch: |
+      - op: remove
+        path: /spec/template/spec/hostUsers
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: url
+          value: https://neokube.net

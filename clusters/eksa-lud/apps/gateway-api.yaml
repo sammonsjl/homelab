@@ -1,0 +1,25 @@
+# The Gateway API's CRDs, for the Cloudflare tunnel controller.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway-api
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: eksa-lud
+    path: infrastructure/gateway-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 20
+      backoff: {duration: 30s, factor: 2, maxDuration: 3m}

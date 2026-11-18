@@ -1,0 +1,25 @@
+# neokube.net: Ghost and its MySQL. The secret ghost-db with the two database passwords is made by hand first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ghost
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: eksa-lud
+    path: apps/ghost/eksa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ghost
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 20
+      backoff: {duration: 30s, factor: 2, maxDuration: 3m}

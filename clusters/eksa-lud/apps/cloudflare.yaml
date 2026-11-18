@@ -1,0 +1,25 @@
+# The Cloudflare tunnel that publishes neokube.net. The secret cloudflare in cloudflare is made by hand first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudflare
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sammonsjl/homelab.git
+    targetRevision: eksa-lud
+    path: infrastructure/cloudflare/eksa
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 20
+      backoff: {duration: 30s, factor: 2, maxDuration: 3m}

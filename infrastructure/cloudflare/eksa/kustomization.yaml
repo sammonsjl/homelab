@@ -1,0 +1,10 @@
+# The Cloudflare tunnel that publishes neokube.net, on lud's EKS Anywhere cluster: the
+# same controller, GatewayClass and Gateway as on Yojimbo (..), less OpenShift's SCC
+# binding. Needs the Gateway API CRDs (infrastructure/gateway-api) and the secret
+# cloudflare in this namespace (keys ACCOUNT_ID and TOKEN), made by hand from Vault.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../controller
+  - gatewayclass.yaml
+  - gateway.yaml

@@ -1,0 +1,15 @@
+# neokube.net from the LAN: Pi-hole answers neokube.net with lud's address, and HAProxy
+# on lud passes port 443 through to Traefik, so machines at home skip Cloudflare and its
+# Access login. Let's Encrypt over DNS-01 (infrastructure/cert-manager/eksa).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: neokube-net
+  namespace: ghost
+spec:
+  secretName: neokube-net-tls
+  dnsNames:
+    - neokube.net
+  issuerRef:
+    kind: ClusterIssuer
+    name: letsencrypt
