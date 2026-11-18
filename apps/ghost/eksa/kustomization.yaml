@@ -4,6 +4,8 @@
 #   - no Route: from the LAN, Traefik serves neokube.net (ingress.yaml); from the
 #     internet, the Cloudflare tunnel does (httproute.yaml)
 #   - no user namespace (hostUsers: false): that was for OpenShift's restricted-v3 SCC
+#   - MySQL runs as the image's own mysql user (999). OpenShift picked a non-root user;
+#     here the image would start as root and fail to switch, with every capability dropped
 # The site's content is not here: it is synced into Ghost from neokube/content in the
 # Social Office workspace (scripts/neokube-ghost-sync.py), and the theme and redirects
 # are files on the content volume.
@@ -32,3 +34,8 @@ patches:
         value:
           name: url
           value: https://neokube.net
+  - target: {kind: StatefulSet, name: mysql}
+    patch: |
+      - op: add
+        path: /spec/template/spec/securityContext
+        value: {runAsUser: 999, runAsGroup: 999, fsGroup: 999, runAsNonRoot: true}
